@@ -1,0 +1,10 @@
+{
+  "name": "Con Quest",
+  "short_name": "ConQuest",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "description": "Mobile-first quest game for conventions.",
+  "icons": []
+}

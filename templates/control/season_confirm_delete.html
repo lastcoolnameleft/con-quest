@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="h3 mb-3">Delete season</h1>
+<div class="alert alert-warning">This will permanently delete season <strong>{{ season.title }}</strong> and related data.</div>
+<form method="post" class="d-flex gap-2">
+    {% csrf_token %}
+    <a class="btn btn-outline-secondary" href="{% url 'control-dashboard' %}">Cancel</a>
+    <button class="btn btn-danger" type="submit">Delete season</button>
+</form>
+{% endblock %}

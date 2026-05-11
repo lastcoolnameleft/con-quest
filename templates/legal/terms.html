@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+        <h1 class="mb-4">Terms of Service</h1>
+        <p class="text-muted small">Last updated: May 2026</p>
+
+        <h2 class="h5 mt-4">1. Acceptance</h2>
+        <p>By joining a Con Quest season you agree to these terms. If you do not agree, do not participate.</p>
+
+        <h2 class="h5 mt-4">2. Who Can Participate</h2>
+        <p>Con Quest is intended for participants aged 13 and older. By joining you confirm you meet this requirement or have permission from a parent or guardian.</p>
+
+        <h2 class="h5 mt-4">3. Your Content</h2>
+        <p>You retain ownership of photos and text you submit. By submitting content you grant Con Quest a non-exclusive, royalty-free licence to display and store that content for the purpose of running the event.</p>
+        <p>You must not submit content that is illegal, abusive, or infringes a third party's rights. Submissions may be reviewed and removed by event hosts.</p>
+
+        <h2 class="h5 mt-4">4. Photo Metadata</h2>
+        <p>When you upload a photo, Con Quest extracts and stores location and device information embedded in the image (EXIF data) for event analytics. The image served to other participants has this metadata removed. See our <a href="{% url 'legal-privacy' %}">Privacy Policy</a> for details.</p>
+
+        <h2 class="h5 mt-4">5. Conduct</h2>
+        <p>Participants must treat others with respect. Harassment, cheating, or abuse of the platform will result in removal from the season.</p>
+
+        <h2 class="h5 mt-4">6. Availability</h2>
+        <p>Con Quest is provided as-is. We make no guarantees of uptime or uninterrupted access during an event.</p>
+
+        <h2 class="h5 mt-4">7. Changes</h2>
+        <p>These terms may be updated at any time. Continued participation after an update constitutes acceptance of the revised terms.</p>
+
+        <p class="mt-4"><a href="{% url 'season-index' %}">&larr; Back to join screen</a></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="h3 mb-3">{% if season %}Edit season{% else %}Create season{% endif %}</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% include "includes/form_fields.html" with form=form %}
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'control-dashboard' %}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{% if season %}Update season{% else %}Save season{% endif %}</button>
+    </div>
+</form>
+
+<script>
+(() => {
+    const titleInput = document.getElementById("id_title");
+    const slugInput = document.getElementById("id_slug");
+
+    if (!titleInput || !slugInput) {
+        return;
+    }
+
+    const initialSlug = slugInput.value.trim();
+    let slugEdited = initialSlug.length > 0;
+    let lastSuggestedSlug = initialSlug;
+
+    function slugify(value) {
+        return value
+            .toLowerCase()
+            .normalize("NFKD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .replace(/-{2,}/g, "-");
+    }
+
+    slugInput.addEventListener("input", () => {
+        slugEdited = true;
+    });
+
+    titleInput.addEventListener("input", () => {
+        const suggested = slugify(titleInput.value);
+        const current = slugInput.value.trim();
+        const canOverwrite = !slugEdited || current === "" || current === lastSuggestedSlug;
+
+        if (canOverwrite) {
+            slugInput.value = suggested;
+            lastSuggestedSlug = suggested;
+            slugEdited = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

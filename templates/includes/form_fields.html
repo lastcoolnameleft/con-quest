@@ -1,0 +1,72 @@
+{% if form.non_field_errors %}
+<div class="alert alert-danger" role="alert">
+    {% for error in form.non_field_errors %}
+    <div>{{ error }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="small text-muted mb-3">
+    <span class="text-danger" aria-hidden="true">*</span>
+    <span>Required field</span>
+</div>
+
+{% for field in form %}
+    {% with tooltip=field.field.widget.attrs.title|default:field.help_text %}
+    {% if field.field.widget.input_type == "checkbox" %}
+    <div class="form-check mb-3">
+        {{ field }}
+        <label class="form-check-label d-inline-flex align-items-center gap-2" for="{{ field.id_for_label }}">
+            {{ field.label }}
+            {% if field.field.required %}
+            <span class="text-danger" aria-hidden="true">*</span>
+            <span class="visually-hidden">required</span>
+            {% endif %}
+            {% if tooltip %}
+            <button
+                type="button"
+                class="badge rounded-pill text-bg-light border"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-title="{{ tooltip }}"
+                aria-label="{{ field.label }} help"
+            >?</button>
+            {% endif %}
+        </label>
+        {% if field.help_text %}
+        <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+        {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mb-3">
+        <label class="form-label d-flex align-items-center gap-2" for="{{ field.id_for_label }}">
+            {{ field.label }}
+            {% if field.field.required %}
+            <span class="text-danger" aria-hidden="true">*</span>
+            <span class="visually-hidden">required</span>
+            {% endif %}
+            {% if tooltip %}
+            <button
+                type="button"
+                class="badge rounded-pill text-bg-light border"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-title="{{ tooltip }}"
+                aria-label="{{ field.label }} help"
+            >?</button>
+            {% endif %}
+        </label>
+        {{ field }}
+        {% if field.help_text %}
+        <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+        {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+{% endfor %}

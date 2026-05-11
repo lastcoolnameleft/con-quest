@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+        <h1 class="mb-4">Privacy Policy</h1>
+        <p class="text-muted small">Last updated: May 2026</p>
+
+        <h2 class="h5 mt-4">1. What We Collect</h2>
+        <p>When you join a season we collect:</p>
+        <ul>
+            <li>Your chosen display name (handle)</li>
+            <li>Text responses and media files you submit for quests</li>
+            <li>EXIF metadata extracted from uploaded images (may include GPS coordinates, device make/model, and timestamp)</li>
+            <li>A session identifier stored in a browser cookie</li>
+        </ul>
+        <p>If you create an account we also store your email address and, optionally, your name.</p>
+
+        <h2 class="h5 mt-4">2. How We Use It</h2>
+        <ul>
+            <li><strong>Running the event</strong> — displaying submissions, scoring, leaderboards, and moderation.</li>
+            <li><strong>Analytics</strong> — understanding how and where the app is used (EXIF location data is used for this purpose and is not shared publicly).</li>
+        </ul>
+        <p>We do not sell or share your data with third parties for advertising purposes.</p>
+
+        <h2 class="h5 mt-4">3. Photo Metadata (EXIF)</h2>
+        <p>Uploaded images may contain GPS coordinates, device information, and timestamps embedded by your camera or phone. Con Quest extracts and stores this data internally for analytics, then strips it from the version of the image displayed to other participants. Raw EXIF data is never shown publicly.</p>
+
+        <h2 class="h5 mt-4">4. Cookies and Sessions</h2>
+        <p>We use a single session cookie to keep you joined to a season across page loads. No third-party tracking cookies are used.</p>
+
+        <h2 class="h5 mt-4">5. Data Retention</h2>
+        <p>Event data is retained for as long as the season exists on the platform. You can ask the event host to remove your submissions or handle at any time.</p>
+
+        <h2 class="h5 mt-4">6. Your Rights</h2>
+        <p>Depending on where you are located you may have rights to access, correct, or delete personal data we hold about you. Contact the event host or the platform operator to make a request.</p>
+
+        <h2 class="h5 mt-4">7. Changes</h2>
+        <p>This policy may be updated at any time. The date at the top of this page reflects the most recent revision.</p>
+
+        <p class="mt-4"><a href="{% url 'season-index' %}">&larr; Back to join screen</a></p>
+    </div>
+</div>
+{% endblock %}

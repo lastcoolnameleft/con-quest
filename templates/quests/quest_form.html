@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="h3 mb-3">{% if is_edit %}Edit quest{% else %}Create quest{% endif %}</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% include "includes/form_fields.html" with form=form %}
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'control-dashboard' %}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{% if is_edit %}Update quest{% else %}Save quest{% endif %}</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-md-5">
+                <h1 class="h3 mb-2">Join A Quest</h1>
+                <p class="text-muted mb-4">Enter your quest code and display name to jump into a season.</p>
+
+                <form method="post" action="{% url 'season-join-by-code' %}" class="row g-3 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold mb-1" for="id_join_code">Room Code</label>
+                        {{ join_form.join_code }}
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold mb-1" for="id_handle">Display Name</label>
+                        {{ join_form.handle }}
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-success btn-lg" type="submit">Play</button>
+                    </div>
+                </form>
+                <p class="text-muted small mt-3 mb-0">
+                    By clicking Play you agree to our <a href="{% url 'legal-terms' %}">Terms of Service</a> and <a href="{% url 'legal-privacy' %}">Privacy Policy</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const codeInput = document.getElementById("id_join_code");
+    if (!codeInput || codeInput.value.trim()) return;
+
+    const fromSearch = new URLSearchParams(window.location.search);
+    const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    const code =
+        fromSearch.get("code") ||
+        fromSearch.get("join_code") ||
+        fromSearch.get("access_code") ||
+        fromHash.get("code") ||
+        fromHash.get("join_code") ||
+        fromHash.get("access_code") ||
+        "";
+
+    if (code) {
+        codeInput.value = code.toUpperCase().trim();
+    }
+})();
+</script>
+{% endblock %}

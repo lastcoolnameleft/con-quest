@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block content %}
+<h1 class="h4 mb-3">Login</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% include "includes/form_fields.html" with form=form %}
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+        <button class="btn btn-primary" type="submit">Login</button>
+    </div>
+</form>
+
+<div class="card mt-3">
+    <div class="card-body d-flex gap-2">
+        <a class="btn btn-outline-danger" href="{% provider_login_url 'google' %}">Continue with Google</a>
+        <a class="btn btn-outline-dark" href="{% provider_login_url 'github' %}">Continue with GitHub</a>
+    </div>
+</div>
+{% endblock %}

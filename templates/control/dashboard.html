@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Control Center</h1>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary" href="{% url 'control-season-create' %}">New Season</a>
+        <a class="btn btn-primary" href="{% url 'quest-create' %}">New Quest</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <h2 class="h5">Manage Seasons</h2>
+        {% if seasons %}
+        <div class="list-group">
+            {% for season in seasons %}
+            <div class="list-group-item border-top{% if not forloop.last %} mb-3{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>{{ season.title }}</strong>
+                        <div class="small text-muted">{{ season.slug }} | {{ season.get_status_display }}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-secondary" href="{% url 'season-detail' season.slug %}">View</a>
+                        <a class="btn btn-sm btn-outline-primary" href="{% url 'season-quest-create' season.slug %}">Add Quest</a>
+                        <a class="btn btn-sm btn-outline-warning" href="{% url 'control-season-edit' season.slug %}">Edit</a>
+                        <a class="btn btn-sm btn-outline-danger" href="{% url 'control-season-delete' season.slug %}">Delete</a>
+                    </div>
+                </div>
+
+                {% with quests=season.quests.all %}
+                {% if quests %}
+                <div class="mt-3 ms-3 ps-3 border-start border-2">
+                    <div class="small text-uppercase text-muted mb-2">Season Quests</div>
+                    {% for quest in quests %}
+                    <div class="d-flex justify-content-between align-items-center py-2 {% if not forloop.first %}border-top{% endif %}">
+                        <span class="small">{{ quest.resolved_title }} <span class="text-muted">({{ quest.get_status_display }})</span></span>
+                        <span class="d-flex gap-2">
+                            {% if quest.status == "draft" %}
+                            <form method="post" action="{% url 'season-quest-status' quest.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="pending">
+                                <button class="btn btn-sm btn-outline-primary" type="submit">Publish</button>
+                            </form>
+                            {% endif %}
+                            {% if quest.quest_mode == "scheduled" and quest.status == "pending" %}
+                            <form method="post" action="{% url 'season-quest-start' quest.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-warning" type="submit">Start</button>
+                            </form>
+                            {% endif %}
+                            {% if quest.quest_mode == "open" and quest.status == "pending" %}
+                            <form method="post" action="{% url 'season-quest-status' quest.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="active">
+                                <button class="btn btn-sm btn-warning" type="submit">Activate</button>
+                            </form>
+                            {% endif %}
+                            {% if quest.status == "active" %}
+                            <form method="post" action="{% url 'season-quest-status' quest.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="complete">
+                                <button class="btn btn-sm btn-outline-success" type="submit">Complete</button>
+                            </form>
+                            {% endif %}
+                            {% if quest.status != "archived" %}
+                            <form method="post" action="{% url 'season-quest-status' quest.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="archived">
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Archive</button>
+                            </form>
+                            {% endif %}
+                            <a class="btn btn-sm btn-outline-warning" href="{% url 'season-quest-edit' quest.id %}">Edit</a>
+                            <a class="btn btn-sm btn-outline-danger" href="{% url 'season-quest-delete' quest.id %}">Delete</a>
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="small text-muted mt-2">No quests yet.</div>
+                {% endif %}
+                {% endwith %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">You do not currently manage any seasons.</p>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-6">
+        <h2 class="h5">Manage Quests</h2>
+        {% if quests %}
+        <div class="list-group">
+            {% for quest in quests %}
+            <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>{{ quest.title }}</strong>
+                    <div class="small text-muted">{{ quest.default_points_max }} pts</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-warning" href="{% url 'quest-edit' quest.id %}">Edit</a>
+                    <a class="btn btn-sm btn-outline-danger" href="{% url 'quest-delete' quest.id %}">Delete</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No quests yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

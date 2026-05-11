@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Scoring queue: {{ season.title }}</h1>
+    <a class="btn btn-outline-primary" href="{% url 'season-leaderboard' season.slug %}">View leaderboard</a>
+</div>
+
+{% if submissions %}
+<div class="list-group">
+    {% for submission in submissions %}
+    <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>{{ submission.quest_assignment.participant.handle }}</strong>
+                <div class="small text-muted">{{ submission.quest_assignment.season_quest.resolved_title }} | Submitted {{ submission.submitted_at }}</div>
+                <div class="small">Current score: {% if submission.score is None %}<span class="badge text-bg-secondary">Pending</span>{% else %}<span class="badge text-bg-primary">{{ submission.score }}</span>{% endif %}</div>
+            </div>
+            <div>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'submission-report' submission.id %}">Report</a>
+            </div>
+        </div>
+
+        {% if submission.text_response %}
+        <p class="mt-2 mb-1">{{ submission.text_response }}</p>
+        {% endif %}
+
+        {% if submission.media_items.count %}
+        <div class="small mb-2">
+            Media files:
+            {% for media in submission.media_items.all %}
+            <a href="{{ media.signed_url }}" target="_blank" rel="noopener">{{ media.media_type }} {{ forloop.counter }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'submission-score' submission.id %}" class="row g-2">
+            {% csrf_token %}
+            <div class="col-md-2">
+                <input type="number" class="form-control" min="0" max="5" name="score" value="{% if submission.score is not None %}{{ submission.score }}{% endif %}" required>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="judge_note" value="{{ submission.judge_note }}" placeholder="Judge note (optional)">
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="reason" placeholder="Required for score edits">
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-success" type="submit">Save score</button>
+            </div>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No submissions to score yet.</p>
+{% endif %}
+{% endblock %}

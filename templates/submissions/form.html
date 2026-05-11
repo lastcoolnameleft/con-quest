@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="h3 mb-3">Submit quest response</h1>
+<p class="text-muted">Quest: {{ assignment.season_quest.resolved_title }}</p>
+<form method="post" enctype="multipart/form-data" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% include "includes/form_fields.html" with form=form %}
+        <div class="small text-muted">
+            Images: up to 30MB. Videos: up to 100MB and 15 seconds max. Allowed types: jpg, jpeg, png, webp, mp4, mov.
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'season-detail' assignment.season_quest.season.slug %}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </div>
+</form>
+{% endblock %}

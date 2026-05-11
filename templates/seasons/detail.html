@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">{{ season.title }}</h1>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <a class="btn btn-outline-secondary" href="{% url 'season-leaderboard' season.slug %}">Leaderboard</a>
+        {% if can_manage_quests %}
+        <a class="btn btn-outline-primary" href="{% url 'season-scoring-queue' season.slug %}">Scoring Queue</a>
+        <a class="btn btn-outline-danger" href="{% url 'season-moderation-queue' season.slug %}">Moderation Queue</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not participant %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h4 mb-1">Join This Season</h2>
+        <p class="text-muted mb-3">Enter the join code and your display name to jump in.</p>
+        <form method="post" action="{% url 'season-join' season.slug %}" class="row g-3 align-items-end">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label class="form-label fw-semibold mb-1" for="id_join_code">Join Code</label>
+                {{ join_form.join_code }}
+                <div class="form-text">Case-insensitive.</div>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-semibold mb-1" for="id_handle">Display Name</label>
+                {{ join_form.handle }}
+                <div class="form-text">Shown on quests and the leaderboard.</div>
+            </div>
+            <div class="col-md-3 d-grid">
+                <button class="btn btn-success btn-lg" type="submit">Join</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="h6 mb-1">You joined as {{ participant.handle }}</h2>
+            <div class="small text-muted">Role: {{ participant.get_role_display }} | {% if participant.is_guest %}Guest{% else %}Account linked{% endif %}</div>
+        </div>
+        {% if user.is_authenticated and participant.is_guest %}
+        <form method="post" action="{% url 'season-claim' season.slug %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-primary" type="submit">Claim with account</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<h2 class="h4">Quests</h2>
+{% if quests %}
+<div class="list-group">
+    {% for quest in quests %}
+    <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>{{ quest.resolved_title }}</strong>
+                <div class="small text-muted">{{ quest.get_quest_mode_display }} | {{ quest.get_status_display }} | Max {{ quest.points_max }} pts</div>
+                {% if quest.participant_assignment %}
+                <div class="small">Your status: <span class="badge text-bg-secondary">{{ quest.participant_assignment.get_status_display }}</span></div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2">
+                {% if participant and quest.quest_mode == "open" and quest.status == "active" and not quest.participant_assignment %}
+                <form method="post" action="{% url 'season-quest-claim' quest.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-primary" type="submit">Claim</button>
+                </form>
+                {% endif %}
+                {% if quest.status == "active" and quest.participant_assignment and quest.participant_assignment.status == "pending" %}
+                <a class="btn btn-sm btn-success" href="{% url 'assignment-submit' quest.participant_assignment.id %}">Submit</a>
+                {% endif %}
+            </div>
+        </div>
+        {% if participant and quest.quest_mode == "scheduled" and quest.status == "pending" and not quest.participant_assignment %}
+        <form class="mt-2 row g-2" method="post" action="{% url 'season-quest-enroll' quest.id %}">
+            {% csrf_token %}
+            <div class="col-md-5"><input name="rsvp_code" class="form-control form-control-sm" placeholder="Quest code (or season code if no override)"></div>
+            <div class="col-md-3 d-grid"><button class="btn btn-sm btn-outline-secondary" type="submit">Enroll</button></div>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No quests have been created yet.</p>
+{% endif %}
+
+<script>
+(() => {
+    const seasonStateUrl = "{% url 'season-state' season.slug %}";
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/{{ season.id }}/`;
+
+    let wsConnected = false;
+    let pollIntervalId = null;
+    let reconnectDelay = 1000;
+
+    async function pollFallback() {
+        try {
+            const response = await fetch(seasonStateUrl, { headers: { "Accept": "application/json" } });
+            if (typeof setNavStatus === "function") setNavStatus(response.ok ? "warn" : "error");
+        } catch (_) {
+            if (typeof setNavStatus === "function") setNavStatus("error");
+        }
+    }
+
+    function startPolling() {
+        if (pollIntervalId !== null) return;
+        pollFallback();
+        pollIntervalId = setInterval(pollFallback, 2000);
+    }
+
+    function stopPolling() {
+        if (pollIntervalId !== null) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
+        }
+    }
+
+    function connectWs() {
+        const socket = new WebSocket(wsUrl);
+        socket.onopen = () => {
+            wsConnected = true;
+            reconnectDelay = 1000;
+            stopPolling();
+            if (typeof setNavStatus === "function") setNavStatus("ok");
+        };
+        socket.onmessage = (message) => {
+            try {
+                const payload = JSON.parse(message.data);
+                if (payload.event === "quest_started" || payload.event === "submission_created" || payload.event === "submission_scored") {
+                    window.location.reload();
+                }
+            } catch (error) {
+                // Ignore malformed payloads and continue.
+            }
+        };
+        socket.onclose = () => {
+            wsConnected = false;
+            startPolling();
+            setTimeout(() => {
+                reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+                connectWs();
+            }, reconnectDelay);
+        };
+        socket.onerror = () => {
+            wsConnected = false;
+        };
+    }
+
+    connectWs();
+})();
+</script>
+{% endblock %}

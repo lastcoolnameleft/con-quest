@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="h3 mb-3">{% if is_edit %}Edit season quest{% else %}Create season quest{% endif %}</h1>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        {% include "includes/form_fields.html" with form=form %}
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'control-dashboard' %}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{% if is_edit %}Update quest{% else %}Save quest{% endif %}</button>
+    </div>
+</form>
+
+{{ quest_defaults|json_script:"quest-defaults-data" }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+(() => {
+    const questSelect = document.getElementById("id_quest");
+    const titleInput = document.getElementById("id_title_override");
+    const descriptionInput = document.getElementById("id_description_override");
+    const questModeSelect = document.getElementById("id_quest_mode");
+    const rsvpInput = document.getElementById("id_rsvp_code");
+    const durationInput = document.getElementById("id_duration_seconds");
+    const opensAtInput = document.getElementById("id_opens_at");
+    const closesAtInput = document.getElementById("id_closes_at");
+    const allowLateInput = document.getElementById("id_allow_late_submissions");
+    const lateGraceInput = document.getElementById("id_late_grace_seconds");
+    const defaultsNode = document.getElementById("quest-defaults-data");
+
+    if (!questSelect || !titleInput || !descriptionInput || !defaultsNode) {
+        return;
+    }
+
+    const questDefaults = JSON.parse(defaultsNode.textContent || "{}");
+    let lastAutoTitle = titleInput.value;
+    let lastAutoDescription = descriptionInput.value;
+
+    function applyDefaults(force = false) {
+        const selected = questDefaults[questSelect.value];
+        if (!selected) {
+            return;
+        }
+
+        const canUpdateTitle = force || titleInput.value === "" || titleInput.value === lastAutoTitle;
+        const canUpdateDescription =
+            force || descriptionInput.value === "" || descriptionInput.value === lastAutoDescription;
+
+        if (canUpdateTitle) {
+            titleInput.value = selected.title || "";
+            lastAutoTitle = titleInput.value;
+        }
+        if (canUpdateDescription) {
+            descriptionInput.value = selected.description || "";
+            lastAutoDescription = descriptionInput.value;
+        }
+    }
+
+    questSelect.addEventListener("change", () => applyDefaults(false));
+    if (!titleInput.value && !descriptionInput.value) {
+        applyDefaults(true);
+    }
+
+    if (allowLateInput && lateGraceInput) {
+        const lateGraceRow = lateGraceInput.closest(".mb-3") || lateGraceInput.parentElement;
+
+        function syncLateGraceVisibility() {
+            const enabled = Boolean(allowLateInput.checked);
+            lateGraceRow.classList.toggle("d-none", !enabled);
+            lateGraceInput.disabled = !enabled;
+        }
+
+        allowLateInput.addEventListener("change", syncLateGraceVisibility);
+        syncLateGraceVisibility();
+    }
+
+    if (questModeSelect && durationInput && opensAtInput && closesAtInput) {
+        const modeRow = questModeSelect.closest(".mb-3");
+        const durationRow = durationInput.closest(".mb-3");
+        const opensRow = opensAtInput.closest(".mb-3");
+        const closesRow = closesAtInput.closest(".mb-3");
+
+        if (modeRow && durationRow && opensRow && closesRow) {
+            const card = document.createElement("div");
+            card.className = "border rounded p-3 mb-3 bg-body-tertiary";
+            card.id = "scheduled-settings-card";
+            card.innerHTML = `
+                <div class="small fw-semibold mb-2">Scheduled Quest Settings</div>
+                <div class="small text-muted mb-3">Choose one timing method: duration or open/close times.</div>
+                <div class="d-flex flex-wrap gap-3 mb-3" role="radiogroup" aria-label="Timing method">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="timing_method" id="timing-method-duration" value="duration">
+                        <label class="form-check-label" for="timing-method-duration">Set duration</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="timing_method" id="timing-method-window" value="window">
+                        <label class="form-check-label" for="timing-method-window">Set open and close times</label>
+                    </div>
+                </div>
+                <div id="timing-duration-section"></div>
+                <div id="timing-window-section" class="row g-2"></div>
+            `;
+
+            modeRow.insertAdjacentElement("afterend", card);
+
+            const durationSection = card.querySelector("#timing-duration-section");
+            const windowSection = card.querySelector("#timing-window-section");
+            const durationRadio = card.querySelector("#timing-method-duration");
+            const windowRadio = card.querySelector("#timing-method-window");
+
+            durationSection.appendChild(durationRow);
+
+            opensRow.classList.remove("mb-3");
+            closesRow.classList.remove("mb-3");
+            opensRow.classList.add("col-12", "col-md-6", "mb-0");
+            closesRow.classList.add("col-12", "col-md-6", "mb-0");
+            windowSection.appendChild(opensRow);
+            windowSection.appendChild(closesRow);
+
+            function activeTimingMethod() {
+                if (opensAtInput.value && closesAtInput.value) {
+                    return "window";
+                }
+                return "duration";
+            }
+
+            function calcDurationSeconds() {
+                const openDate = new Date(opensAtInput.value);
+                const closeDate = new Date(closesAtInput.value);
+                if (Number.isNaN(openDate.getTime()) || Number.isNaN(closeDate.getTime())) {
+                    return null;
+                }
+                const diffSeconds = Math.floor((closeDate - openDate) / 1000);
+                if (diffSeconds <= 0) {
+                    return null;
+                }
+                return diffSeconds;
+            }
+
+            function syncTimingSection() {
+                const isScheduled = questModeSelect.value === "scheduled";
+                card.classList.toggle("d-none", !isScheduled);
+
+                if (!isScheduled) {
+                    return;
+                }
+
+                const method = windowRadio.checked ? "window" : "duration";
+                durationSection.classList.toggle("d-none", method !== "duration");
+                windowSection.classList.toggle("d-none", method !== "window");
+
+                if (method === "window") {
+                    const calculated = calcDurationSeconds();
+                    if (calculated) {
+                        durationInput.value = calculated;
+                    }
+                }
+            }
+
+            function selectTiming(method) {
+                durationRadio.checked = method === "duration";
+                windowRadio.checked = method === "window";
+                if (method === "duration") {
+                    opensAtInput.value = "";
+                    closesAtInput.value = "";
+                }
+                syncTimingSection();
+            }
+
+            durationRadio.addEventListener("change", () => selectTiming("duration"));
+            windowRadio.addEventListener("change", () => selectTiming("window"));
+            opensAtInput.addEventListener("input", syncTimingSection);
+            closesAtInput.addEventListener("input", syncTimingSection);
+            questModeSelect.addEventListener("change", syncTimingSection);
+
+            selectTiming(activeTimingMethod());
+        }
+    }
+
+    function initDateTimePicker(input) {
+        if (!input) {
+            return;
+        }
+
+        if (window.flatpickr) {
+            window.flatpickr(input, {
+                enableTime: true,
+                minuteIncrement: 1,
+                dateFormat: "Y-m-d\\TH:i",
+                altInput: true,
+                altFormat: "M j, Y h:i K",
+                allowInput: false,
+            });
+            return;
+        }
+
+        // Native fallback for browsers without the Flatpickr script.
+        input.addEventListener("focus", () => {
+            if (typeof input.showPicker === "function") {
+                input.showPicker();
+            }
+        });
+    }
+
+    initDateTimePicker(opensAtInput);
+    initDateTimePicker(closesAtInput);
+})();
+</script>
+{% endblock %}
