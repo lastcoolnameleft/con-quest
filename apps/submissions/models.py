@@ -9,6 +9,7 @@ from apps.seasons.models import SeasonParticipant
 class Submission(models.Model):
     quest_assignment = models.OneToOneField(QuestAssignment, on_delete=models.CASCADE, related_name="submission")
     text_response = models.TextField(blank=True)
+    is_draft = models.BooleanField(default=False)
     submitted_at = models.DateTimeField(auto_now_add=True)
     is_late = models.BooleanField(default=False)
     score = models.PositiveSmallIntegerField(

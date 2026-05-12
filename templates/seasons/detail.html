@@ -42,7 +42,6 @@
     <div class="card-body d-flex justify-content-between align-items-center">
         <div>
             <h2 class="h6 mb-1">You joined as {{ participant.handle }}</h2>
-            <div class="small text-muted">Role: {{ participant.get_role_display }} | {% if participant.is_guest %}Guest{% else %}Account linked{% endif %}</div>
         </div>
         {% if user.is_authenticated and participant.is_guest %}
         <form method="post" action="{% url 'season-claim' season.slug %}">
@@ -51,6 +50,12 @@
         </form>
         {% endif %}
     </div>
+</div>
+{% endif %}
+
+{% if participant and submitted_assignment_count %}
+<div class="alert alert-info" role="status">
+    You have already submitted for {{ submitted_assignment_count }} quest{% if submitted_assignment_count != 1 %}s{% endif %} in this season.
 </div>
 {% endif %}
 
@@ -65,21 +70,27 @@
                 <div class="small text-muted">{{ quest.get_quest_mode_display }} | {{ quest.get_status_display }} | Max {{ quest.points_max }} pts</div>
                 {% if quest.participant_assignment %}
                 <div class="small">Your status: <span class="badge text-bg-secondary">{{ quest.participant_assignment.get_status_display }}</span></div>
+                {% if quest.participant_assignment.status == "submitted" or quest.participant_assignment.status == "scored" %}
+                <div class="small text-success fw-semibold">You have already submitted for this quest.</div>
+                {% endif %}
                 {% endif %}
             </div>
             <div class="d-flex gap-2">
                 {% if participant and quest.quest_mode == "open" and quest.status == "active" and not quest.participant_assignment %}
-                <form method="post" action="{% url 'season-quest-claim' quest.id %}">
-                    {% csrf_token %}
-                    <button class="btn btn-sm btn-primary" type="submit">Claim</button>
-                </form>
+                <a class="btn btn-sm btn-success" href="{% url 'season-quest-submit' quest.id %}">Submit</a>
                 {% endif %}
                 {% if quest.status == "active" and quest.participant_assignment and quest.participant_assignment.status == "pending" %}
                 <a class="btn btn-sm btn-success" href="{% url 'assignment-submit' quest.participant_assignment.id %}">Submit</a>
                 {% endif %}
+                {% if quest.participant_assignment and quest.participant_assignment.status == "submitted" %}
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'assignment-submit' quest.participant_assignment.id %}">View / Edit Submission</a>
+                {% endif %}
+                {% if quest.participant_assignment and quest.participant_assignment.status == "scored" %}
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'assignment-submit' quest.participant_assignment.id %}">View Submission</a>
+                {% endif %}
             </div>
         </div>
-        {% if participant and quest.quest_mode == "scheduled" and quest.status == "pending" and not quest.participant_assignment %}
+        {% if participant and quest.quest_mode == "scheduled" and quest.status != "complete" and quest.status != "archived" and not quest.participant_assignment %}
         <form class="mt-2 row g-2" method="post" action="{% url 'season-quest-enroll' quest.id %}">
             {% csrf_token %}
             <div class="col-md-5"><input name="rsvp_code" class="form-control form-control-sm" placeholder="Quest code (or season code if no override)"></div>

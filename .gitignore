@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
 *.sqlite3
-.env
+.env*
 .venv/
 .pytest_cache/
 .ruff_cache/
@@ -9,3 +9,4 @@ staticfiles/
 media/
 node_modules/
 .DS_Store
+.vscode/

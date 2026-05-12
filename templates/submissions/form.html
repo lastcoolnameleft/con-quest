@@ -1,19 +1,63 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block content %}
-<h1 class="h3 mb-3">Submit quest response</h1>
+<h1 class="h3 mb-3">{% if submission %}View submission{% if can_edit_submission %} / Edit submission{% endif %}{% else %}Submit quest response{% endif %}</h1>
 <p class="text-muted">Quest: {{ assignment.season_quest.resolved_title }}</p>
+{% if submission %}
+<p class="text-muted">Submitted: {{ submission.submitted_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }} {{ submission.submitted_at|timezone:assignment.season_quest.season.timezone|date:"T" }}</p>
+{% endif %}
+{% if submission and not can_edit_submission %}
+<div class="alert alert-secondary" role="status">
+    This submission has already been scored and is view-only.
+</div>
+{% endif %}
+{% if submission and submission_is_draft and can_edit_submission %}
+<div class="alert alert-info" role="status">
+    This response is saved as a draft and is not yet submitted for scoring.
+</div>
+{% endif %}
 <form method="post" enctype="multipart/form-data" class="card">
     {% csrf_token %}
     <div class="card-body">
         {% include "includes/form_fields.html" with form=form %}
+        {% if submission and submission.media_items.count %}
+        <div class="mt-3">
+            <div class="small text-muted mb-2">Existing media</div>
+            <div class="row g-3">
+                {% for media in submission.media_items.all %}
+                <div class="col-12 col-md-6">
+                    {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                    {% if media.media_type == "image" %}
+                    <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                    {% elif media.media_type == "video" %}
+                    <video controls preload="metadata" class="w-100 rounded border">
+                        <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                        Your browser does not support embedded video.
+                    </video>
+                    {% else %}
+                    <a href="{{ media_url }}" target="_blank" rel="noopener">Open media {{ forloop.counter }}</a>
+                    {% endif %}
+                    <div class="small mt-1"><a href="{{ media_url }}" target="_blank" rel="noopener">Open in new tab</a></div>
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         <div class="small text-muted">
+            {% if can_edit_submission %}
+            You can update text and add more media until this submission is scored.
+            {% endif %}
             Images: up to 30MB. Videos: up to 100MB and 15 seconds max. Allowed types: jpg, jpeg, png, webp, mp4, mov.
         </div>
     </div>
     <div class="card-footer d-flex justify-content-end gap-2">
         <a class="btn btn-outline-secondary" href="{% url 'season-detail' assignment.season_quest.season.slug %}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Submit</button>
+        {% if can_edit_submission %}
+        <button class="btn btn-outline-primary" type="submit" name="submit_action" value="draft">Save Draft</button>
+        <button class="btn btn-primary" type="submit" name="submit_action" value="submit">Submit for scoring</button>
+        {% endif %}
     </div>
 </form>
 {% endblock %}

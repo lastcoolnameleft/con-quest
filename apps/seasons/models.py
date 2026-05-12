@@ -14,6 +14,7 @@ class Season(models.Model):
     slug = models.SlugField(unique=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
     join_code = models.CharField(max_length=20)
+    timezone = models.CharField(max_length=64, default="UTC", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

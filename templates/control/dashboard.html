@@ -9,6 +9,17 @@
     </div>
 </div>
 
+{% if control_pending_score_count %}
+<a
+    class="alert alert-warning d-flex justify-content-between align-items-center text-decoration-none text-dark"
+    role="status"
+    href="{{ control_pending_score_url|default:'#' }}"
+>
+    <div><strong>Pending scores needing review:</strong> {{ control_pending_score_count }}</div>
+    <div class="small">Open newest scoring queue</div>
+</a>
+{% endif %}
+
 <div class="row g-4">
     <div class="col-lg-6">
         <h2 class="h5">Manage Seasons</h2>

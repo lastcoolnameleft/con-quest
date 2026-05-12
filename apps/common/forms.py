@@ -11,6 +11,7 @@ class BootstrapFormMixin:
         "status": "Controls lifecycle and visibility behavior for this item.",
         "keep_image_exif": "Keep camera metadata on uploaded images. Disable for better privacy.",
         "join_code": "Required to join the season. Share this with participants.",
+        "timezone": "Timezone used to display season and timeline timestamps.",
         "starts_at": "Optional start date/time. Leave blank to start manually.",
         "ends_at": "Optional end date/time after which activity should stop.",
         "default_duration_seconds": "Default time limit in seconds when this quest is used.",

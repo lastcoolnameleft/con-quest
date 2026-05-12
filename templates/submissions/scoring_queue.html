@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -6,15 +7,18 @@
     <a class="btn btn-outline-primary" href="{% url 'season-leaderboard' season.slug %}">View leaderboard</a>
 </div>
 
-{% if submissions %}
+{% if pending_submissions or scored_submissions %}
+{% if pending_submissions %}
+<h2 class="h5 mb-2">Pending submissions</h2>
 <div class="list-group">
-    {% for submission in submissions %}
+    {% for submission in pending_submissions %}
     <div class="list-group-item">
-        <div class="d-flex justify-content-between align-items-start">
+        <div class="d-flex justify-content-between align-items-start gap-3">
             <div>
-                <strong>{{ submission.quest_assignment.participant.handle }}</strong>
-                <div class="small text-muted">{{ submission.quest_assignment.season_quest.resolved_title }} | Submitted {{ submission.submitted_at }}</div>
-                <div class="small">Current score: {% if submission.score is None %}<span class="badge text-bg-secondary">Pending</span>{% else %}<span class="badge text-bg-primary">{{ submission.score }}</span>{% endif %}</div>
+                <strong class="d-block">{{ submission.quest_assignment.participant.handle }}</strong>
+                <div class="small text-muted">{{ submission.quest_assignment.season_quest.resolved_title }}</div>
+                <div class="small text-muted">Submitted {{ submission.submitted_at|timezone:season.timezone|date:"M j, Y, g:i a" }} {{ submission.submitted_at|timezone:season.timezone|date:"T" }}</div>
+                <div class="small mt-1">Current score: {% if submission.score is None %}<span class="badge text-bg-secondary">Pending</span>{% else %}<span class="badge text-bg-primary">{{ submission.score }}</span>{% endif %}</div>
             </div>
             <div>
                 <a class="btn btn-sm btn-outline-danger" href="{% url 'submission-report' submission.id %}">Report</a>
@@ -22,36 +26,157 @@
         </div>
 
         {% if submission.text_response %}
-        <p class="mt-2 mb-1">{{ submission.text_response }}</p>
-        {% endif %}
-
-        {% if submission.media_items.count %}
-        <div class="small mb-2">
-            Media files:
-            {% for media in submission.media_items.all %}
-            <a href="{{ media.signed_url }}" target="_blank" rel="noopener">{{ media.media_type }} {{ forloop.counter }}</a>{% if not forloop.last %}, {% endif %}
-            {% endfor %}
+        <div class="mt-3 p-2 border rounded bg-light-subtle">
+            <div class="small text-muted mb-1">Submission text</div>
+            <p class="mb-0">{{ submission.text_response }}</p>
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'submission-score' submission.id %}" class="row g-2">
+        {% if submission.timeline_events %}
+        <details class="mt-3">
+            <summary class="small text-muted">Submission timeline ({{ submission.timeline_event_count }} events)</summary>
+            <ul class="small mb-0 ps-3 mt-2">
+            {% for event in submission.timeline_events %}
+                <li><strong>{{ event.label }}</strong> - {{ event.timestamp|timezone:season.timezone|date:"M j, Y, g:i a" }} {{ event.timestamp|timezone:season.timezone|date:"T" }}{% if event.detail %}: {{ event.detail }}{% endif %}</li>
+            {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if submission.media_items.count %}
+        <div class="mt-3 mb-2">
+            <div class="small text-muted mb-2">Media files</div>
+            <div class="row g-3">
+                {% for media in submission.media_items.all %}
+                <div class="col-12 col-md-6">
+                    {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                    {% if media.media_type == "image" %}
+                    <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                    {% elif media.media_type == "video" %}
+                    <video controls preload="metadata" class="w-100 rounded border">
+                        <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                        Your browser does not support embedded video.
+                    </video>
+                    {% else %}
+                    <a href="{{ media_url }}" target="_blank" rel="noopener">Open media {{ forloop.counter }}</a>
+                    {% endif %}
+                    <div class="small mt-1"><a href="{{ media_url }}" target="_blank" rel="noopener">Open in new tab</a></div>
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'submission-score' submission.id %}" class="row g-2 mt-3 pt-2 border-top">
             {% csrf_token %}
             <div class="col-md-2">
-                <input type="number" class="form-control" min="0" max="5" name="score" value="{% if submission.score is not None %}{{ submission.score }}{% endif %}" required>
+                <select class="form-select" name="score" required>
+                    <option value="" {% if submission.score is None %}selected{% endif %}>Score</option>
+                    {% for value in "012345" %}
+                    <option value="{{ value }}" {% if submission.score is not None and submission.score|stringformat:"s" == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-md-4">
-                <input type="text" class="form-control" name="judge_note" value="{{ submission.judge_note }}" placeholder="Judge note (optional)">
-            </div>
-            <div class="col-md-4">
-                <input type="text" class="form-control" name="reason" placeholder="Required for score edits">
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="judge_note" value="" placeholder="Judge note (required)" required>
+                <div class="form-text">A judge note is required before saving a score.</div>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-success" type="submit">Save score</button>
+                <button class="btn btn-success" type="submit">Approve &amp; score</button>
             </div>
         </form>
     </div>
     {% endfor %}
 </div>
+{% endif %}
+
+{% if pending_submissions and scored_submissions %}
+<hr class="my-4">
+{% endif %}
+
+{% if scored_submissions %}
+<h2 class="h5 mb-2">Scored submissions</h2>
+<div class="list-group">
+    {% for submission in scored_submissions %}
+    <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <strong class="d-block">{{ submission.quest_assignment.participant.handle }}</strong>
+                <div class="small text-muted">{{ submission.quest_assignment.season_quest.resolved_title }}</div>
+                <div class="small text-muted">Submitted {{ submission.submitted_at|timezone:season.timezone|date:"M j, Y, g:i a" }} {{ submission.submitted_at|timezone:season.timezone|date:"T" }}</div>
+                <div class="small mt-1">Current score: <span class="badge text-bg-primary">{{ submission.score }}</span></div>
+            </div>
+            <div>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'submission-report' submission.id %}">Report</a>
+            </div>
+        </div>
+
+        {% if submission.text_response %}
+        <div class="mt-3 p-2 border rounded bg-light-subtle">
+            <div class="small text-muted mb-1">Submission text</div>
+            <p class="mb-0">{{ submission.text_response }}</p>
+        </div>
+        {% endif %}
+
+        {% if submission.timeline_events %}
+        <details class="mt-3">
+            <summary class="small text-muted">Submission timeline ({{ submission.timeline_event_count }} events)</summary>
+            <ul class="small mb-0 ps-3 mt-2">
+            {% for event in submission.timeline_events %}
+                <li><strong>{{ event.label }}</strong> - {{ event.timestamp|timezone:season.timezone|date:"M j, Y, g:i a" }} {{ event.timestamp|timezone:season.timezone|date:"T" }}{% if event.detail %}: {{ event.detail }}{% endif %}</li>
+            {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if submission.media_items.count %}
+        <div class="mt-3 mb-2">
+            <div class="small text-muted mb-2">Media files</div>
+            <div class="row g-3">
+                {% for media in submission.media_items.all %}
+                <div class="col-12 col-md-6">
+                    {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                    {% if media.media_type == "image" %}
+                    <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                    {% elif media.media_type == "video" %}
+                    <video controls preload="metadata" class="w-100 rounded border">
+                        <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                        Your browser does not support embedded video.
+                    </video>
+                    {% else %}
+                    <a href="{{ media_url }}" target="_blank" rel="noopener">Open media {{ forloop.counter }}</a>
+                    {% endif %}
+                    <div class="small mt-1"><a href="{{ media_url }}" target="_blank" rel="noopener">Open in new tab</a></div>
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'submission-score' submission.id %}" class="row g-2 mt-3 pt-2 border-top">
+            {% csrf_token %}
+            <div class="col-md-2">
+                <select class="form-select" name="score" required>
+                    <option value="" {% if submission.score is None %}selected{% endif %}>Score</option>
+                    {% for value in "012345" %}
+                    <option value="{{ value }}" {% if submission.score is not None and submission.score|stringformat:"s" == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="judge_note" value="" placeholder="Judge note (required)" required>
+                <div class="form-text">A judge note is required before saving a score.</div>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-success" type="submit">Approve &amp; score</button>
+            </div>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 {% else %}
 <p class="text-muted">No submissions to score yet.</p>
 {% endif %}

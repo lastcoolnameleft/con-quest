@@ -1,4 +1,5 @@
 from django import forms
+from zoneinfo import available_timezones
 
 from apps.common.forms import BootstrapFormMixin
 from apps.seasons.models import Season
@@ -35,6 +36,9 @@ class SeasonClaimForm(BootstrapFormMixin, forms.Form):
     confirm = forms.BooleanField(required=True)
 
 
+TIMEZONE_CHOICES = [(tz_name, tz_name) for tz_name in sorted(available_timezones())]
+
+
 class SeasonForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Season
@@ -43,4 +47,13 @@ class SeasonForm(BootstrapFormMixin, forms.ModelForm):
             "slug",
             "status",
             "join_code",
+            "timezone",
         ]
+        widgets = {
+            "timezone": forms.Select(choices=TIMEZONE_CHOICES),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["timezone"].required = False
+        self.fields["timezone"].help_text = "All season times are displayed in this timezone."

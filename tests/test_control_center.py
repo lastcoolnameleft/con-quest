@@ -2,10 +2,12 @@ from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.quests.models import QuestAssignment
 from apps.quests.models import Quest
 from apps.quests.models import SeasonQuest
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
+from apps.submissions.models import Submission
 
 
 class ControlCenterTests(TestCase):
@@ -43,6 +45,28 @@ class ControlCenterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Control Center")
         self.assertContains(response, self.season.title)
+
+    def test_control_dashboard_shows_pending_score_activity(self):
+        self._bind_host_session()
+        player = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        assignment = QuestAssignment.objects.create(
+            season_quest=self.season_quest,
+            participant=player,
+            status=QuestAssignment.Status.SUBMITTED,
+        )
+        Submission.objects.create(quest_assignment=assignment, text_response="pending")
+
+        response = self.client.get(reverse("control-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pending scores needing review:")
+        self.assertContains(response, "1")
+        self.assertContains(response, reverse("season-scoring-queue", kwargs={"slug": self.season.slug}))
 
     def test_host_can_create_edit_delete_season(self):
         self._bind_host_session()

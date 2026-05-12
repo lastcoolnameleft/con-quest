@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
@@ -13,6 +14,7 @@ from apps.submissions.models import Submission
 
 class FullLifecycleAndScaleTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.host_client = Client()
         user_model = get_user_model()
         self.staff_user = user_model.objects.create_user(
@@ -133,10 +135,10 @@ class FullLifecycleAndScaleTests(TestCase):
             player_client, participant = self._join_player(season=season, handle=handle)
             player_clients[handle] = player_client
 
-            claim_response = player_client.post(
-                reverse("season-quest-claim", kwargs={"quest_id": season_quest.id}),
+            open_submit_entry_response = player_client.get(
+                reverse("season-quest-submit", kwargs={"quest_id": season_quest.id}),
             )
-            self.assertEqual(claim_response.status_code, 302)
+            self.assertEqual(open_submit_entry_response.status_code, 302)
 
             assignment = QuestAssignment.objects.get(season_quest=season_quest, participant=participant)
             assignments[handle] = assignment
@@ -214,6 +216,30 @@ class FullLifecycleAndScaleTests(TestCase):
         season_quest.refresh_from_db()
         self.assertEqual(season_quest.status, SeasonQuest.Status.ARCHIVED)
         self.assertContains(response, "Invalid status transition")
+
+    def test_pending_open_quest_rejects_direct_submit(self):
+        season = Season.objects.create(title="Pending Submit Season", slug="pending-submit-season", join_code="PEND26")
+        template = Quest.objects.create(title="Pending Quest", description="Desc")
+        season_quest = SeasonQuest.objects.create(
+            season=season,
+            quest=template,
+            title_override="Pending Open",
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+            status=SeasonQuest.Status.PENDING,
+        )
+
+        player_client, participant = self._join_player(season=season, handle="eve")
+
+        response = player_client.post(
+            reverse("season-quest-submit", kwargs={"quest_id": season_quest.id}),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quest is not active yet.")
+        self.assertFalse(
+            QuestAssignment.objects.filter(season_quest=season_quest, participant=participant).exists()
+        )
 
     def test_season_detail_shows_pending_active_complete_only(self):
         season = Season.objects.create(title="Visibility Season", slug="visibility-season", join_code="VIS2026")

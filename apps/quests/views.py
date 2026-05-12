@@ -170,7 +170,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
     participant = get_session_participant(request, season_quest.season)
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     actor_id = participant.id if participant else f"user-{request.user.id}"
 
@@ -183,7 +183,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
     )
     if not allowed:
         messages.error(request, f"Too many start attempts. Retry in about {retry_after} seconds.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
+        response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
             limit=limit,
@@ -194,7 +194,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
     if season_quest.quest_mode != SeasonQuest.QuestMode.SCHEDULED:
         messages.error(request, "Only scheduled quests can be started manually.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
+        response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
             limit=limit,
@@ -204,7 +204,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
     if season_quest.status == SeasonQuest.Status.ACTIVE:
         messages.info(request, "Scheduled quest is already live.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
+        response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
             limit=limit,
@@ -214,7 +214,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
     if season_quest.status in {SeasonQuest.Status.COMPLETE, SeasonQuest.Status.ARCHIVED}:
         messages.error(request, "Closed or archived scheduled quests cannot be started.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
+        response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
             limit=limit,
@@ -224,7 +224,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
     if season_quest.status != SeasonQuest.Status.PENDING:
         messages.error(request, "Scheduled quests must be published before they can be started.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
+        response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
             limit=limit,
@@ -235,7 +235,7 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
     _activate_quest_window(season_quest)
 
     messages.success(request, f"Scheduled quest '{season_quest.resolved_title}' started.")
-    response = redirect("season-detail", slug=season_quest.season.slug)
+    response = redirect("control-dashboard")
     return add_rate_limit_headers(
         response,
         limit=limit,
@@ -249,17 +249,17 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
     season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     target_status = (request.POST.get("status") or "").strip().lower()
     valid_statuses = {choice for choice, _ in SeasonQuest.Status.choices}
     if target_status not in valid_statuses:
         messages.error(request, "Invalid target status.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     if not season_quest.can_transition_to(target_status):
         messages.error(request, "Invalid status transition.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     if target_status == SeasonQuest.Status.ACTIVE:
         if season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED:
@@ -268,7 +268,7 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
             season_quest.status = SeasonQuest.Status.ACTIVE
             season_quest.save(update_fields=["status", "updated_at"])
         messages.success(request, "Quest is now active.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     if target_status == SeasonQuest.Status.COMPLETE:
         season_quest.status = SeasonQuest.Status.COMPLETE
@@ -278,57 +278,12 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
         else:
             season_quest.save(update_fields=["status", "updated_at"])
         messages.success(request, "Quest marked complete.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+        return redirect("control-dashboard")
 
     season_quest.status = target_status
     season_quest.save(update_fields=["status", "updated_at"])
     messages.success(request, f"Quest moved to {season_quest.get_status_display()}.")
-    return redirect("season-detail", slug=season_quest.season.slug)
-
-
-@require_POST
-def claim_open_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
-    participant = get_session_participant(request, season_quest.season)
-    if not participant:
-        messages.error(request, "Join the season before claiming quests.")
-        return redirect("season-detail", slug=season_quest.season.slug)
-
-    limit = 20
-    window_seconds = 60
-    allowed, retry_after, current_count = check_rate_limit(
-        key=f"quest-claim:{season_quest.season_id}:{participant.id}",
-        limit=limit,
-        window_seconds=window_seconds,
-    )
-    if not allowed:
-        messages.error(request, f"Too many claim attempts. Retry in about {retry_after} seconds.")
-        response = redirect("season-detail", slug=season_quest.season.slug)
-        return add_rate_limit_headers(
-            response,
-            limit=limit,
-            window_seconds=window_seconds,
-            remaining=0,
-            retry_after=retry_after,
-        )
-
-    if season_quest.quest_mode != SeasonQuest.QuestMode.OPEN:
-        messages.error(request, "Only open quests can be claimed directly.")
-        return redirect("season-detail", slug=season_quest.season.slug)
-
-    QuestAssignment.objects.get_or_create(
-        season_quest=season_quest,
-        participant=participant,
-        defaults={"assignment_source": QuestAssignment.Source.OPEN_CLAIM},
-    )
-    messages.success(request, f"Quest '{season_quest.resolved_title}' claimed.")
-    response = redirect("season-detail", slug=season_quest.season.slug)
-    return add_rate_limit_headers(
-        response,
-        limit=limit,
-        window_seconds=window_seconds,
-        remaining=limit - current_count,
-    )
+    return redirect("control-dashboard")
 
 
 @require_POST

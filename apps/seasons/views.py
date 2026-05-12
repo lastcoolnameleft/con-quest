@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import IntegrityError
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -36,11 +37,47 @@ def index(request: HttpRequest) -> HttpResponse:
         or ""
     ).strip().upper()
     join_form = SeasonJoinForm(initial={"join_code": prefill_code} if prefill_code else None)
+
+    session_participant_ids = [
+        int(value)
+        for key, value in request.session.items()
+        if key.startswith("season_participant_") and str(value).isdigit()
+    ]
+    participant_filter = Q(id__in=session_participant_ids)
+    if request.user.is_authenticated:
+        participant_filter |= Q(account=request.user)
+
+    joined_participants = list(
+        SeasonParticipant.objects.filter(participant_filter)
+        .select_related("season")
+        .order_by("-joined_at")
+        .distinct()
+    )
+    assignments_by_participant: dict[int, list[QuestAssignment]] = {}
+    if joined_participants:
+        assignments = (
+            QuestAssignment.objects.filter(participant__in=joined_participants)
+            .select_related("season_quest__quest")
+            .order_by("season_quest__created_at", "season_quest__id")
+        )
+        for assignment in assignments:
+            assignments_by_participant.setdefault(assignment.participant_id, []).append(assignment)
+
+    joined_seasons = [
+        {
+            "participant": participant,
+            "season": participant.season,
+            "assignments": assignments_by_participant.get(participant.id, []),
+        }
+        for participant in joined_participants
+    ]
+
     return render(
         request,
         "seasons/index.html",
         {
             "join_form": join_form,
+            "joined_seasons": joined_seasons,
             "can_create_quests": can_create_quests(request),
         },
     )
@@ -49,6 +86,14 @@ def index(request: HttpRequest) -> HttpResponse:
 def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
     season = get_object_or_404(Season, slug=slug)
     participant = get_session_participant(request, season)
+    if not participant and request.user.is_authenticated:
+        participant = (
+            SeasonParticipant.objects.filter(season=season, account=request.user)
+            .order_by("joined_at")
+            .first()
+        )
+        if participant:
+            bind_session_participant(request, season, participant)
     can_manage_quests = can_manage_season(request, season)
     visible_statuses = [SeasonQuest.Status.PENDING, SeasonQuest.Status.ACTIVE, SeasonQuest.Status.COMPLETE]
     quests = list(
@@ -68,6 +113,12 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
     for quest in quests:
         quest.participant_assignment = assignment_map.get(quest.id)
 
+    submitted_assignment_count = sum(
+        1
+        for assignment in assignment_map.values()
+        if assignment.status in {QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED}
+    )
+
     return render(
         request,
         "seasons/detail.html",
@@ -77,6 +128,7 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "can_manage_quests": can_manage_quests,
             "join_form": SeasonJoinForm(),
             "quests": quests,
+            "submitted_assignment_count": submitted_assignment_count,
             "can_access_control": can_access_control_center(request),
         },
     )

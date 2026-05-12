@@ -37,6 +37,7 @@ class ThrottleHeaderTests(TestCase):
             title_override="Open Quest",
             points_max=5,
             quest_mode=SeasonQuest.QuestMode.OPEN,
+            status=SeasonQuest.Status.ACTIVE,
         )
         self.scheduled_quest = SeasonQuest.objects.create(
             season=self.season,
@@ -93,9 +94,9 @@ class ThrottleHeaderTests(TestCase):
         self._assert_throttle_headers(limited)
         self.assertIn("Retry-After", limited)
 
-    def test_claim_open_quest_returns_headers_and_retry_after_when_limited(self):
+    def test_direct_submit_open_quest_returns_headers_and_retry_after_when_limited(self):
         self._set_participant_session(self.player)
-        url = reverse("season-quest-claim", kwargs={"quest_id": self.open_quest.id})
+        url = reverse("season-quest-submit", kwargs={"quest_id": self.open_quest.id})
 
         first = self.client.post(url)
         self.assertEqual(first.status_code, 302)
