@@ -55,7 +55,7 @@
 
 {% if participant and submitted_assignment_count %}
 <div class="alert alert-info" role="status">
-    You have already submitted for {{ submitted_assignment_count }} quest{% if submitted_assignment_count != 1 %}s{% endif %} in this season.
+    You have already submitted for {{ submitted_assignment_count }}/{{ quest_count }} quest{% if quest_count != 1 %}s{% endif %} in this season.
 </div>
 {% endif %}
 

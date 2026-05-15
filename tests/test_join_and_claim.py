@@ -157,7 +157,7 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "You have already submitted for 1 quest in this season.")
+        self.assertContains(response, "You have already submitted for 1/1 quest in this season.")
         self.assertContains(response, "You have already submitted for this quest.")
 
     def test_season_detail_recovers_claimed_participant_without_session(self):
@@ -193,4 +193,4 @@ class JoinAndClaimTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "You joined as notif-player")
-        self.assertContains(response, "You have already submitted for 1 quest in this season.")
+        self.assertContains(response, "You have already submitted for 1/1 quest in this season.")

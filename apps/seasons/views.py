@@ -129,6 +129,7 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "join_form": SeasonJoinForm(),
             "quests": quests,
             "submitted_assignment_count": submitted_assignment_count,
+            "quest_count": len(quests),
             "can_access_control": can_access_control_center(request),
         },
     )
