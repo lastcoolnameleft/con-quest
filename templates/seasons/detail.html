@@ -71,7 +71,7 @@
                 {% if quest.participant_assignment %}
                 <div class="small">Your status: <span class="badge text-bg-secondary">{{ quest.participant_assignment.get_status_display }}</span></div>
                 {% if quest.participant_assignment.status == "submitted" or quest.participant_assignment.status == "scored" %}
-                <div class="small text-success fw-semibold">You have already submitted for this quest.</div>
+                <div class="small"><a href="{% url 'assignment-submit' quest.participant_assignment.id %}" class="text-success fw-semibold text-decoration-none">You have already submitted for this quest.</a></div>
                 {% endif %}
                 {% endif %}
             </div>
