@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1 class="h3 mb-3">View Submission</h1>
+        <p class="text-muted">Quest: {{ assignment.season_quest.resolved_title }}</p>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="mb-3">
+                    <h5 class="card-subtitle mb-1">Status</h5>
+                    <span class="badge text-bg-secondary">{{ assignment.get_status_display }}</span>
+                </div>
+
+                <div class="mb-3">
+                    <h5 class="card-subtitle mb-1">Submitted</h5>
+                    <p class="mb-0">{{ submission.submitted_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }} {{ submission.submitted_at|timezone:assignment.season_quest.season.timezone|date:"T" }}</p>
+                    {% if submission.is_late %}
+                    <span class="badge text-bg-warning mt-2">Late submission</span>
+                    {% endif %}
+                </div>
+
+                {% if submission.score is not None %}
+                <div class="mb-3">
+                    <h5 class="card-subtitle mb-1">Score</h5>
+                    <p class="mb-0"><strong>{{ submission.score }}/5</strong></p>
+                    {% if submission.judge_note %}
+                    <div class="small text-muted mt-1">Judge's note: {{ submission.judge_note }}</div>
+                    {% endif %}
+                    {% if submission.scored_by_participant %}
+                    <p class="small text-muted mt-2 mb-0">Scored by {{ submission.scored_by_participant.handle }} on {{ submission.scored_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }}</p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="alert alert-info" role="status">
+                    This submission is awaiting review.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if submission.text_response %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h5 class="card-subtitle mb-3">Response</h5>
+                <div class="submission-text">{{ submission.text_response|linebreaks }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if submission.media_items.all %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h5 class="card-subtitle mb-3">Media</h5>
+                <div class="row g-3">
+                    {% for media in submission.media_items.all %}
+                    <div class="col-12 col-md-6">
+                        {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                        {% if media.media_type == "image" %}
+                        <figure class="figure">
+                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border figure-img">
+                            <figcaption class="figure-caption small text-muted">{{ media.uploaded_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }}</figcaption>
+                        </figure>
+                        {% elif media.media_type == "video" %}
+                        <div class="mb-2">
+                            <video controls preload="metadata" class="w-100 rounded border" style="max-height: 400px;">
+                                <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                                Your browser does not support embedded video.
+                            </video>
+                            <figcaption class="figure-caption small text-muted mt-2">{{ media.uploaded_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }}</figcaption>
+                        </div>
+                        {% else %}
+                        <a href="{{ media_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">Open media {{ forloop.counter }}</a>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+            <a href="{% url 'season-detail' assignment.season_quest.season.slug %}" class="btn btn-outline-secondary">Back to season</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

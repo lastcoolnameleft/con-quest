@@ -343,6 +343,44 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
     )
 
 
+def view_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    assignment = get_object_or_404(
+        QuestAssignment.objects.select_related("season_quest__season", "participant"),
+        id=assignment_id,
+    )
+    season = assignment.season_quest.season
+    participant = get_session_participant(request, season)
+    if not participant and getattr(request.user, "is_authenticated", False):
+        participant = (
+            SeasonParticipant.objects.filter(season=season, account=request.user)
+            .order_by("joined_at")
+            .first()
+        )
+        if participant:
+            bind_session_participant(request, season, participant)
+    if not participant or assignment.participant_id != participant.id:
+        messages.error(request, "You can only view your own assigned quests.")
+        return redirect("season-detail", slug=season.slug)
+
+    submission = getattr(assignment, "submission", None)
+    if not submission:
+        messages.error(request, "No submission found for this assignment.")
+        return redirect("season-detail", slug=season.slug)
+
+    # Fetch signed URLs for media
+    for media in submission.media_items.all():
+        media.signed_url = signed_read_url(media.blob_path_or_url)
+
+    return render(
+        request,
+        "submissions/view.html",
+        {
+            "assignment": assignment,
+            "submission": submission,
+        },
+    )
+
+
 def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
     from apps.seasons.models import Season
 

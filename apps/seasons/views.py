@@ -63,14 +63,32 @@ def index(request: HttpRequest) -> HttpResponse:
         for assignment in assignments:
             assignments_by_participant.setdefault(assignment.participant_id, []).append(assignment)
 
-    joined_seasons = [
-        {
+    # Get quest counts for each season
+    seasons = {p.season_id: p.season for p in joined_participants}
+    active_quests_by_season: dict[int, int] = {}
+    pending_quests_by_season: dict[int, int] = {}
+    if seasons:
+        for season_id, season in seasons.items():
+            active_quests_by_season[season_id] = season.quests.filter(status=SeasonQuest.Status.ACTIVE).count()
+            pending_quests_by_season[season_id] = season.quests.filter(status=SeasonQuest.Status.PENDING).count()
+
+    joined_seasons = []
+    for participant in joined_participants:
+        assignments = assignments_by_participant.get(participant.id, [])
+        submitted_to_active_count = sum(
+            1 for a in assignments
+            if a.status in [QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED]
+            and a.season_quest.status == SeasonQuest.Status.ACTIVE
+        )
+        active_quest_count = active_quests_by_season.get(participant.season_id, 0)
+        available_to_submit = active_quest_count - submitted_to_active_count
+        joined_seasons.append({
             "participant": participant,
             "season": participant.season,
-            "assignments": assignments_by_participant.get(participant.id, []),
-        }
-        for participant in joined_participants
-    ]
+            "assignments": assignments,
+            "available_to_submit": max(0, available_to_submit),
+            "pending_quest_count": pending_quests_by_season.get(participant.season_id, 0),
+        })
 
     return render(
         request,
@@ -117,7 +135,11 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
         1
         for assignment in assignment_map.values()
         if assignment.status in {QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED}
+        and assignment.season_quest.status == SeasonQuest.Status.ACTIVE
     )
+    active_quest_count = sum(1 for q in quests if q.status == SeasonQuest.Status.ACTIVE)
+    pending_quest_count = sum(1 for q in quests if q.status == SeasonQuest.Status.PENDING)
+    available_to_submit = max(0, active_quest_count - submitted_assignment_count)
 
     return render(
         request,
@@ -128,8 +150,8 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "can_manage_quests": can_manage_quests,
             "join_form": SeasonJoinForm(),
             "quests": quests,
-            "submitted_assignment_count": submitted_assignment_count,
-            "quest_count": len(quests),
+            "available_to_submit": available_to_submit,
+            "pending_quest_count": pending_quest_count,
             "can_access_control": can_access_control_center(request),
         },
     )

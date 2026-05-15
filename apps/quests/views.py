@@ -61,7 +61,7 @@ def season_quest_create(request: HttpRequest, slug: str) -> HttpResponse:
             season_quest.created_by_participant = participant
             season_quest.save()
             messages.success(request, "Season quest created.")
-            return redirect("season-detail", slug=slug)
+            return redirect("control-dashboard")
         form.add_error(None, "Could not save quest. Fix the highlighted fields and try again.")
     else:
         form = SeasonQuestForm(season=season)

@@ -21,7 +21,7 @@ class Quest(models.Model):
 class SeasonQuest(models.Model):
     class QuestMode(models.TextChoices):
         SCHEDULED = "scheduled", "Scheduled"
-        OPEN = "open", "Open"
+        OPEN = "open", "Drop-in"
 
     class AssignmentPolicy(models.TextChoices):
         HOST_ASSIGNED = "host_assigned", "Host Assigned"
@@ -31,7 +31,7 @@ class SeasonQuest(models.Model):
         DRAFT = "draft", "Draft"
         PENDING = "pending", "Pending"
         ACTIVE = "active", "Active"
-        COMPLETE = "complete", "Complete"
+        COMPLETE = "complete", "Closed"
         ARCHIVED = "archived", "Archived"
 
     class RevealPolicy(models.TextChoices):

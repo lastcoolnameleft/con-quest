@@ -16,18 +16,19 @@
                                 <div class="small text-muted">
                                     Joined as {{ entry.participant.handle }} ({{ entry.participant.get_role_display }})
                                 </div>
+                                {% if entry.available_to_submit %}
+                                <div class="small text-primary fw-semibold mt-1">
+                                    {{ entry.available_to_submit }} quest{% if entry.available_to_submit != 1 %}s{% endif %} available to submit.
+                                </div>
+                                {% endif %}
+                                {% if entry.pending_quest_count %}
+                                <div class="small text-muted mt-1">
+                                    {{ entry.pending_quest_count }} quest{% if entry.pending_quest_count != 1 %}s{% endif %} coming soon.
+                                </div>
+                                {% endif %}
                             </div>
                             <a class="btn btn-sm btn-outline-primary" href="{% url 'season-detail' entry.season.slug %}">Open season</a>
                         </div>
-                        {% if entry.assignments %}
-                        <ul class="mt-2 mb-0 small">
-                            {% for assignment in entry.assignments %}
-                            <li>{{ assignment.season_quest.resolved_title }}: {{ assignment.get_status_display }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <div class="small text-muted mt-2">No quests joined yet for this season.</div>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
