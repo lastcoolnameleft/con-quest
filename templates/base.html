@@ -43,7 +43,7 @@
                 {% endif %}
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <span class="nav-link small text-white-50 py-0">👤 {{ user.username }}</span>
+                    <a class="nav-link small text-white-50 py-0 text-decoration-none" href="{% url 'account-profile' %}">👤 {{ user.username }}</a>
                 </li>
                 <li class="nav-item">
                     <form method="post" action="{% url 'logout' %}">
