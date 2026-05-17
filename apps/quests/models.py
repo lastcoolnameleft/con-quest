@@ -74,6 +74,10 @@ class SeasonQuest(models.Model):
         return self.title_override or self.quest.title
 
     @property
+    def resolved_description(self) -> str:
+        return self.description_override or self.quest.description
+
+    @property
     def effective_rsvp_code(self) -> str:
         return (self.rsvp_code or self.season.join_code or "").strip().upper()
 

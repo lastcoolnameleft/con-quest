@@ -11,6 +11,15 @@
 
 <h1 class="h3 mb-3">{% if submission %}📝 {% if can_edit_submission %}Edit{% else %}View{% endif %} Submission{% else %}📸 Submit Quest Response{% endif %}</h1>
 
+{% if assignment.season_quest.resolved_description %}
+<div class="card cq-card mb-4">
+    <div class="card-body">
+        <h2 class="h6 fw-bold mb-2">📋 Quest Instructions</h2>
+        <div class="text-muted">{{ assignment.season_quest.resolved_description|linebreaksbr }}</div>
+    </div>
+</div>
+{% endif %}
+
 {% if ends_at_iso %}
 <div class="card border-warning cq-card mb-4">
     <div class="card-body text-center py-3">
