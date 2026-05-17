@@ -4,7 +4,6 @@
 {% block content %}
 <div class="cq-login-container">
     <div class="text-center mb-4">
-        <div style="font-size:3rem">🗺️</div>
         <h1 class="h3 mb-2">Welcome to ConQuest</h1>
         <p class="text-muted">Sign in to track your progress across seasons, or <a href="{% url 'season-index' %}">join as a guest</a> with just a room code.</p>
     </div>
@@ -22,7 +21,7 @@
         </div>
     </div>
 
-    <details class="card cq-card">
+    <details class="card cq-card"{% if form.errors %} open{% endif %}>
         <summary class="card-body py-3 px-4 fw-semibold" style="cursor:pointer">
             Sign in with username &amp; password
         </summary>

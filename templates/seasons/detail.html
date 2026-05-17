@@ -53,6 +53,9 @@
             <button class="btn btn-sm btn-outline-primary" type="submit">🔗 Link to account</button>
         </form>
         {% endif %}
+        {% if debug and user.is_staff %}
+        <a class="btn btn-sm btn-outline-warning" href="{% url 'dev-switch-persona' season.slug %}">🛠️ Switch</a>
+        {% endif %}
     </div>
 </div>
 {% endif %}

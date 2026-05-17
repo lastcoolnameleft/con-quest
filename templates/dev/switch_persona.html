@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Switch Persona — {{ season.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <nav class="mb-3" aria-label="breadcrumb">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item"><a href="{% url 'season-detail' season.slug %}">{{ season.title }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Switch Persona</li>
+            </ol>
+        </nav>
+
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+            🛠️ <strong>Dev-only tool</strong> — this page is only available when DEBUG=True.
+        </div>
+
+        <h1 class="h4 mb-3">Switch Persona</h1>
+        <p class="text-muted mb-4">Pick a participant to play as in <strong>{{ season.title }}</strong>. Your browser session will switch immediately.</p>
+
+        {% if participants %}
+        <div class="d-flex flex-column gap-2">
+            {% for p in participants %}
+            <form method="post" class="card cq-card">
+                {% csrf_token %}
+                <input type="hidden" name="participant_id" value="{{ p.id }}">
+                <button type="submit" class="card-body d-flex justify-content-between align-items-center py-3 border-0 bg-transparent w-100 text-start" style="cursor:pointer">
+                    <div>
+                        <strong>{{ p.handle }}</strong>
+                        <span class="cq-badge cq-badge-{{ p.role }} ms-2">{{ p.get_role_display }}</span>
+                        {% if p.account %}
+                        <span class="text-muted small ms-2">🔗 {{ p.account.username }}</span>
+                        {% else %}
+                        <span class="text-muted small ms-2">👤 Guest</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if p.id == current_participant_id %}
+                        <span class="cq-badge cq-badge-active">Current</span>
+                        {% else %}
+                        <span class="cq-quest-action cq-quest-action-edit">Switch</span>
+                        {% endif %}
+                    </div>
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="cq-empty-state">
+            <span class="cq-empty-icon">👥</span>
+            <p>No participants have joined this season yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

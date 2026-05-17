@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
@@ -12,3 +13,10 @@ urlpatterns = [
     path("", include("apps.leaderboard.urls")),
     path("", include("apps.seasons.urls")),
 ]
+
+if settings.DEBUG:
+    from apps.common.dev_views import switch_persona
+
+    urlpatterns += [
+        path("dev/switch/<slug:slug>/", switch_persona, name="dev-switch-persona"),
+    ]

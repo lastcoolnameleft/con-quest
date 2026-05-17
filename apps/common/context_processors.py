@@ -1,3 +1,4 @@
+from django.conf import settings as django_settings
 from apps.quests.permissions import can_access_control_center
 from apps.quests.permissions import manageable_seasons_queryset
 from apps.submissions.models import Submission
@@ -29,4 +30,5 @@ def control_center(request):
         "can_access_control": can_access,
         "control_pending_score_count": pending_score_count,
         "control_pending_score_url": pending_score_url,
+        "debug": django_settings.DEBUG,
     }

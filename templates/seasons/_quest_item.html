@@ -5,7 +5,11 @@
             <div class="flex-grow-1">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <strong>{{ quest.resolved_title }}</strong>
+                    {% if quest.time_expired and quest.status == "active" %}
+                    <span class="cq-badge cq-badge-complete">Ended</span>
+                    {% else %}
                     <span class="cq-badge cq-badge-{{ quest.status }}">{{ quest.get_status_display }}</span>
+                    {% endif %}
                     <span class="cq-mode-tag">{{ quest.get_quest_mode_display }}</span>
                 </div>
                 {% if quest.participant_assignment %}
