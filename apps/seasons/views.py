@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -129,19 +129,50 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
         assignment_map = {assignment.season_quest_id: assignment for assignment in assignments}
 
     now = timezone.now()
+    active_quests = []
+    past_quests = []
     for quest in quests:
         quest.participant_assignment = assignment_map.get(quest.id)
         quest.time_expired = bool(quest.ends_at and now > quest.ends_at)
+        if quest.status in {SeasonQuest.Status.COMPLETE, SeasonQuest.Status.ARCHIVED} or quest.time_expired:
+            past_quests.append(quest)
+        else:
+            active_quests.append(quest)
 
-    submitted_assignment_count = sum(
-        1
-        for assignment in assignment_map.values()
-        if assignment.status in {QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED}
-        and assignment.season_quest.status == SeasonQuest.Status.ACTIVE
-    )
-    active_quest_count = sum(1 for q in quests if q.status == SeasonQuest.Status.ACTIVE)
-    pending_quest_count = sum(1 for q in quests if q.status == SeasonQuest.Status.PENDING)
-    available_to_submit = max(0, active_quest_count - submitted_assignment_count)
+    # Compute per-category counts for the active quest summary
+    ready_to_submit_count = 0
+    submitted_count = 0
+    scored_count = 0
+    pending_quest_count = sum(1 for q in active_quests if q.status == SeasonQuest.Status.PENDING)
+
+    for q in active_quests:
+        if q.status != SeasonQuest.Status.ACTIVE:
+            continue
+        assignment = q.participant_assignment
+        if not assignment:
+            ready_to_submit_count += 1
+        elif assignment.status == QuestAssignment.Status.SCORED:
+            scored_count += 1
+        elif assignment.status == QuestAssignment.Status.SUBMITTED:
+            submitted_count += 1
+        else:
+            ready_to_submit_count += 1
+
+    # Compute participant's total score and leaderboard rank
+    participant_score = 0
+    participant_rank = None
+    if participant:
+        ranked = list(
+            SeasonParticipant.objects.filter(season=season)
+            .annotate(total_score=Sum("quest_assignments__submission__score"))
+            .order_by("-total_score", "handle")
+            .values_list("id", "total_score")
+        )
+        for i, (pid, score) in enumerate(ranked, start=1):
+            if pid == participant.id:
+                participant_score = score or 0
+                participant_rank = i
+                break
 
     return render(
         request,
@@ -152,8 +183,14 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "can_manage_quests": can_manage_quests,
             "join_form": SeasonJoinForm(),
             "quests": quests,
-            "available_to_submit": available_to_submit,
+            "active_quests": active_quests,
+            "past_quests": past_quests,
+            "ready_to_submit_count": ready_to_submit_count,
+            "submitted_count": submitted_count,
+            "scored_count": scored_count,
             "pending_quest_count": pending_quest_count,
+            "participant_score": participant_score,
+            "participant_rank": participant_rank,
             "can_access_control": can_access_control_center(request),
         },
     )

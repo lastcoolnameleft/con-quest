@@ -110,6 +110,21 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
     submission = getattr(assignment, "submission", None)
     can_edit_submission = assignment.status != QuestAssignment.Status.SCORED
 
+    timing_error = _submission_timing_error(assignment)
+    if timing_error:
+        season_quest = assignment.season_quest
+        logger.info(
+            "Submission timing rejected for assignment %s (%s): %s | status=%s started_at=%s ends_at=%s",
+            assignment.id,
+            season_quest.quest_mode,
+            timing_error,
+            season_quest.status,
+            season_quest.started_at.isoformat() if season_quest.started_at else None,
+            season_quest.ends_at.isoformat() if season_quest.ends_at else None,
+        )
+        messages.error(request, timing_error)
+        return redirect("season-detail", slug=season.slug)
+
     if request.method == "POST":
         submit_action = (request.POST.get("submit_action") or "submit").strip().lower()
         if submit_action not in {"draft", "submit"}:
@@ -136,22 +151,6 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
                 remaining=0,
                 retry_after=retry_after,
             )
-
-    if request.method == "POST" and submit_action == "submit":
-        timing_error = _submission_timing_error(assignment)
-        if timing_error:
-            season_quest = assignment.season_quest
-            logger.info(
-                "Submission timing rejected for assignment %s (%s): %s | status=%s started_at=%s ends_at=%s",
-                assignment.id,
-                season_quest.quest_mode,
-                timing_error,
-                season_quest.status,
-                season_quest.started_at.isoformat() if season_quest.started_at else None,
-                season_quest.ends_at.isoformat() if season_quest.ends_at else None,
-            )
-            messages.error(request, timing_error)
-            return redirect("season-detail", slug=season.slug)
 
     if request.method == "POST":
         form = SubmissionForm(request.POST, request.FILES)

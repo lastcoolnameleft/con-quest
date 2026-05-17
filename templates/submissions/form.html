@@ -89,6 +89,19 @@
         if (diff <= 0) {
             el.textContent = "00:00:00";
             el.classList.add("text-danger");
+            // Disable all submit buttons and show expiry message
+            document.querySelectorAll('form button[type="submit"]').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove("btn-primary", "btn-outline-primary");
+                btn.classList.add("btn-secondary");
+            });
+            const card = el.closest(".card");
+            if (card && !card.querySelector(".cq-expired-msg")) {
+                const msg = document.createElement("div");
+                msg.className = "cq-expired-msg small text-danger mt-2";
+                msg.textContent = "⏰ Time\u2019s up! The submission window has closed.";
+                card.querySelector(".card-body").appendChild(msg);
+            }
             return;
         }
         const h = Math.floor(diff / 3600000);

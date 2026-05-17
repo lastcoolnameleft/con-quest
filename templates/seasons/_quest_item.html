@@ -1,0 +1,66 @@
+<div class="cq-quest-item d-flex">
+    <div class="cq-status-bar {{ quest.status }}{% if quest.participant_assignment %} {{ quest.participant_assignment.status }}{% endif %}"></div>
+    <div class="flex-grow-1 p-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <strong>{{ quest.resolved_title }}</strong>
+                    <span class="cq-badge cq-badge-{{ quest.status }}">{{ quest.get_status_display }}</span>
+                    <span class="cq-mode-tag">{{ quest.get_quest_mode_display }}</span>
+                </div>
+                {% if quest.participant_assignment %}
+                <div class="mt-2">
+                    {% if quest.participant_assignment.status == "scored" and quest.status == "complete" %}
+                    <a href="{% url 'assignment-view' quest.participant_assignment.id %}" class="text-decoration-none">
+                        <span class="cq-badge cq-badge-scored">✅ Scored: {{ quest.participant_assignment.submission.score }}/{{ quest.points_max }}</span>
+                    </a>
+                    {% elif quest.participant_assignment.status == "scored" %}
+                    <a href="{% url 'assignment-view' quest.participant_assignment.id %}" class="text-decoration-none">
+                        <span class="cq-badge cq-badge-scored">✅ Score: {{ quest.participant_assignment.submission.score }}/{{ quest.points_max }}</span>
+                    </a>
+                    {% elif quest.participant_assignment.status == "submitted" %}
+                    <a href="{% url 'assignment-view' quest.participant_assignment.id %}" class="text-decoration-none">
+                        <span class="cq-badge cq-badge-submitted">📤 Submitted — scoring soon</span>
+                    </a>
+                    {% elif quest.participant_assignment.status == "pending" and quest.participant_assignment.submission %}
+                    <span class="cq-badge cq-badge-draft">📝 Draft — not submitted</span>
+                    {% elif quest.participant_assignment.status == "pending" and quest.time_expired %}
+                    <span class="cq-badge cq-badge-missed">⏰ Time's up — no submission</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 align-items-start flex-shrink-0">
+                {% if participant and quest.status == "active" %}
+                    {% if quest.participant_assignment.status == "scored" %}
+                    <a class="cq-quest-action cq-quest-action-view" href="{% url 'assignment-view' quest.participant_assignment.id %}">View</a>
+                    {% elif quest.time_expired %}
+                    <span class="cq-quest-action cq-quest-action-ended">Ended</span>
+                    {% elif quest.participant_assignment and quest.participant_assignment.status == "submitted" %}
+                    <a class="cq-quest-action cq-quest-action-edit" href="{% url 'assignment-submit' quest.participant_assignment.id %}">Edit</a>
+                    {% elif quest.participant_assignment and quest.participant_assignment.status == "pending" and quest.participant_assignment.submission %}
+                    <a class="cq-quest-action cq-quest-action-edit" href="{% url 'assignment-submit' quest.participant_assignment.id %}">Continue</a>
+                    {% elif quest.participant_assignment and quest.participant_assignment.status == "pending" %}
+                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'assignment-view' quest.participant_assignment.id %}">▶ Start</a>
+                    {% elif quest.quest_mode == "open" and not quest.participant_assignment %}
+                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'season-quest-submit' quest.id %}">▶ Start</a>
+                    {% endif %}
+                {% elif participant and quest.status == "pending" and quest.quest_mode == "scheduled" and quest.participant_assignment %}
+                    <a class="cq-quest-action cq-quest-action-view" href="{% url 'assignment-view' quest.participant_assignment.id %}">🎯 Lobby</a>
+                {% elif participant and quest.quest_mode == "scheduled" and quest.status != "complete" and quest.status != "archived" and not quest.participant_assignment %}
+                    <form class="d-flex align-items-center gap-2 m-0" method="post" action="{% url 'season-quest-enroll' quest.id %}">
+                        {% csrf_token %}
+                        {% if quest.rsvp_code %}
+                        <input name="rsvp_code" class="form-control form-control-sm cq-enroll-input" placeholder="Quest code">
+                        {% endif %}
+                        <button class="cq-quest-action cq-quest-action-edit" type="submit">Enroll</button>
+                    </form>
+                {% elif quest.status == "complete" %}
+                    {% if quest.participant_assignment and quest.participant_assignment.status == "submitted" or quest.participant_assignment.status == "scored" %}
+                    <a class="cq-quest-action cq-quest-action-view" href="{% url 'assignment-view' quest.participant_assignment.id %}">View</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

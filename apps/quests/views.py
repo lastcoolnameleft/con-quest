@@ -83,7 +83,7 @@ def quest_create(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             form.save()
             messages.success(request, "Quest created.")
-            return redirect("season-index")
+            return redirect("control-dashboard")
     else:
         form = QuestForm()
 

@@ -350,6 +350,24 @@ body {
     padding: 0.3em 0.75em;
     border-radius: 50px;
 }
+.cq-rank-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cq-dark);
+}
+.cq-score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--cq-primary);
+    background: var(--cq-primary-light);
+    padding: 0.3em 0.75em;
+    border-radius: 50px;
+}
 
 /* ── Smooth scroll ── */
 html { scroll-behavior: smooth; }
@@ -384,4 +402,67 @@ html { scroll-behavior: smooth; }
     font-size: 1rem;
     font-weight: 400;
     color: var(--cq-muted);
+}
+
+/* ── Quest action pills (consistent right-side indicators) ── */
+.cq-quest-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35em 1em;
+    border-radius: 50px;
+    border: 1.5px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+a.cq-quest-action:hover {
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+.cq-quest-action-start {
+    background: var(--cq-success);
+    color: #fff;
+    border-color: var(--cq-success);
+}
+a.cq-quest-action-start:hover {
+    background: #059669;
+    border-color: #059669;
+    color: #fff;
+}
+.cq-quest-action-edit {
+    background: transparent;
+    color: var(--cq-primary);
+    border-color: var(--cq-primary);
+}
+a.cq-quest-action-edit:hover {
+    background: var(--cq-primary-light);
+    color: var(--cq-primary-hover);
+}
+.cq-quest-action-view {
+    background: transparent;
+    color: var(--cq-muted);
+    border-color: #cbd5e1;
+}
+a.cq-quest-action-view:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+}
+.cq-quest-action-ended {
+    background: var(--cq-danger-light);
+    color: #991b1b;
+    border-color: var(--cq-danger-light);
+    cursor: default;
+    opacity: 0.8;
+}
+
+/* ── Inline enroll input ── */
+.cq-enroll-input {
+    width: 8rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    padding: 0.3em 0.75em;
 }

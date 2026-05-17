@@ -3,7 +3,7 @@
 {% block content %}
 {% if not joined_seasons %}
 <div class="cq-hero">
-    <h1>🗺️ ConQuest</h1>
+    <h1>ConQuest</h1>
     <p>The multiplayer scavenger hunt for conventions and events. Complete quests, upload proof, and climb the leaderboard!</p>
     <div class="cq-hero-steps">
         <div class="cq-hero-step">
@@ -25,7 +25,7 @@
 <div class="row justify-content-center mt-4">
     <div class="col-lg-7 col-xl-6">
         {% if joined_seasons %}
-        <h2 class="h5 mb-3 d-flex align-items-center gap-2">🎮 Your Seasons</h2>
+        <h2 class="h5 mb-3 d-flex align-items-center gap-2">Your Seasons</h2>
         {% for entry in joined_seasons %}
         <div class="cq-season-card d-flex align-items-start gap-3">
             <div class="cq-status-bar active"></div>
@@ -33,7 +33,7 @@
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
                         <strong class="d-block fs-6">{{ entry.season.title }}</strong>
-                        <span class="cq-joined-badge mt-1">✓ {{ entry.participant.handle }}</span>
+                        <span class="cq-joined-badge mt-1">Playing as {{ entry.participant.handle }}</span>
                     </div>
                     <a class="btn btn-cq-primary btn-sm" href="{% url 'season-detail' entry.season.slug %}">Open →</a>
                 </div>
@@ -56,7 +56,7 @@
 
         <div class="card cq-join-card">
             <div class="card-body p-4 p-md-5">
-                <h2 class="h4 mb-2 d-flex align-items-center gap-2">🎟️ Join A Quest</h2>
+                <h2 class="h4 mb-2 d-flex align-items-center gap-2">Join A Quest</h2>
                 <p class="text-muted mb-4">Got a room code? Enter it below with your display name to jump in. No account required!</p>
 
                 <form method="post" action="{% url 'season-join-by-code' %}" class="row g-3 align-items-end">
