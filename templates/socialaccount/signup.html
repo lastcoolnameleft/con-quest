@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Sign Up — ConQuest{% endblock %}
+
+{% block content %}
+<div class="cq-login-container">
+    <div class="text-center mb-4">
+        <div style="font-size:3rem">🗺️</div>
+        <h1 class="h3 mb-2">{% trans "Almost there!" %}</h1>
+        <p class="text-muted">
+            {% blocktrans with provider_name=account.get_provider.name %}
+            You're signing in with {{ provider_name }}. Just pick a username to finish setting up your account.
+            {% endblocktrans %}
+        </p>
+    </div>
+
+    <div class="card cq-card">
+        <div class="card-body p-4">
+            <form method="post" action="{% url 'socialaccount_signup' %}">
+                {% csrf_token %}
+                {% include "includes/form_fields.html" with form=form %}
+                {{ redirect_field }}
+                <div class="d-grid mt-3">
+                    <button class="btn btn-cq-primary" type="submit">{% trans "Sign Up" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
