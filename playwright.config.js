@@ -2,6 +2,9 @@
 const { defineConfig } = require('@playwright/test');
 
 const baseURL = process.env.BASE_URL || 'http://127.0.0.1:8000';
+const urlObj = new URL(baseURL);
+const host = urlObj.hostname;
+const port = urlObj.port || '8000';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
@@ -16,7 +19,7 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'python manage.py runserver 127.0.0.1:8000',
+    command: `python3 manage.py runserver ${host}:${port}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
