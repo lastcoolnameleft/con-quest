@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -114,6 +114,11 @@ def quest_delete(request: HttpRequest, quest_id: int) -> HttpResponse:
         return redirect("season-index")
 
     quest = get_object_or_404(Quest, id=quest_id)
+
+    if quest.season_quests.exists():
+        messages.error(request, "Cannot delete a quest that is tied to one or more seasons.")
+        return redirect("control-dashboard")
+
     if request.method == "POST":
         quest.delete()
         messages.success(request, "Quest deleted.")
@@ -277,6 +282,13 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
             season_quest.save(update_fields=["status", "ends_at", "updated_at"])
         else:
             season_quest.save(update_fields=["status", "updated_at"])
+        broadcast_season_event(
+            season_id=season_quest.season_id,
+            payload={
+                "event": "quest_completed",
+                "season_quest_id": season_quest.id,
+            },
+        )
         messages.success(request, "Quest marked complete.")
         return redirect("control-dashboard")
 
@@ -312,22 +324,23 @@ def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
             retry_after=retry_after,
         )
 
-    submitted_code = (request.POST.get("rsvp_code") or "").strip().upper()
     if season_quest.quest_mode != SeasonQuest.QuestMode.SCHEDULED:
         messages.error(request, "This quest is not scheduled.")
         return redirect("season-detail", slug=season_quest.season.slug)
-    expected_code = season_quest.effective_rsvp_code
-    if not expected_code or submitted_code != expected_code:
-        messages.error(request, "Invalid RSVP code.")
-        return redirect("season-detail", slug=season_quest.season.slug)
+    expected_code = season_quest.rsvp_code.strip().upper() if season_quest.rsvp_code else ""
+    if expected_code:
+        submitted_code = (request.POST.get("rsvp_code") or "").strip().upper()
+        if submitted_code != expected_code:
+            messages.error(request, "Invalid RSVP code.")
+            return redirect("season-detail", slug=season_quest.season.slug)
 
-    QuestAssignment.objects.get_or_create(
+    assignment, _created = QuestAssignment.objects.get_or_create(
         season_quest=season_quest,
         participant=participant,
         defaults={"assignment_source": QuestAssignment.Source.RSVP_CODE},
     )
     messages.success(request, f"Enrolled in scheduled quest '{season_quest.resolved_title}'.")
-    response = redirect("season-detail", slug=season_quest.season.slug)
+    response = redirect("assignment-view", assignment_id=assignment.pk)
     return add_rate_limit_headers(
         response,
         limit=limit,
@@ -340,3 +353,13 @@ def _can_manage_quests(participant: SeasonParticipant | None) -> bool:
     if not participant:
         return False
     return participant.role in {SeasonParticipant.Role.HOST, SeasonParticipant.Role.ADMIN}
+
+
+def season_quest_status_check(request: HttpRequest, quest_id: int) -> JsonResponse:
+    """Lightweight polling endpoint returning the current quest status."""
+    season_quest = get_object_or_404(SeasonQuest, id=quest_id)
+    return JsonResponse({
+        "status": season_quest.status,
+        "started_at": season_quest.started_at.isoformat() if season_quest.started_at else None,
+        "ends_at": season_quest.ends_at.isoformat() if season_quest.ends_at else None,
+    })

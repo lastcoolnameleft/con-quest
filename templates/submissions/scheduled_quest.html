@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h1 class="h3 mb-1">{{ assignment.season_quest.resolved_title }}</h1>
+        {% if phase != "waiting" %}
+        <p class="text-muted mb-4">{{ assignment.season_quest.description_override|default:assignment.season_quest.quest.description }}</p>
+        {% else %}
+        <p class="text-muted mb-4">Details will be revealed when the quest begins.</p>
+        {% endif %}
+
+        {# ── Waiting for quest to start ── #}
+        {% if phase == "waiting" %}
+        <div class="card cq-card mb-4">
+            <div class="card-body text-center py-5">
+                <h2 class="h5 mb-3">⏳ Quest starts soon</h2>
+                {% if opens_at_iso %}
+                <p class="text-muted mb-2">Starting at {{ assignment.season_quest.opens_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }}</p>
+                <div id="countdown" class="cq-countdown mb-3" data-target="{{ opens_at_iso }}">--:--:--</div>
+                <p class="small text-muted">This page will update automatically when the quest begins.</p>
+                {% else %}
+                <p class="text-muted">The host will start the quest shortly. Hang tight!</p>
+                <div class="spinner-border text-primary mt-3" role="status">
+                    <span class="visually-hidden">Waiting…</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mb-4">
+            <a href="{% url 'season-detail' assignment.season_quest.season.slug %}" class="btn btn-outline-secondary">Back to season</a>
+        </div>
+
+        {# ── Quest is active — show timer + submission form ── #}
+        {% elif phase == "active" %}
+        {% if ends_at_iso %}
+        <div class="card border-warning shadow-sm mb-4">
+            <div class="card-body text-center py-3">
+                <div class="small text-muted mb-1">Time remaining</div>
+                <div id="countdown" class="cq-countdown" data-target="{{ ends_at_iso }}" data-expired-redirect="true">--:--:--</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'assignment-submit' assignment.id %}" enctype="multipart/form-data" class="card shadow-sm border-0">
+            {% csrf_token %}
+            <div class="card-body">
+                {% if submission and not can_edit_submission %}
+                <div class="alert alert-secondary" role="status">
+                    This submission has already been scored and is view-only.
+                </div>
+                {% endif %}
+                {% if submission and submission.is_draft and can_edit_submission %}
+                <div class="alert alert-info" role="status">
+                    This response is saved as a draft and is not yet submitted for scoring.
+                </div>
+                {% endif %}
+
+                {% include "includes/form_fields.html" with form=form %}
+
+                {% if submission and submission.media_items.count %}
+                <div class="mt-3">
+                    <div class="small text-muted mb-2">Existing media</div>
+                    <div class="row g-3">
+                        {% for media in submission.media_items.all %}
+                        <div class="col-12 col-md-6">
+                            {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                            {% if media.media_type == "image" %}
+                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                            {% elif media.media_type == "video" %}
+                            <video controls preload="metadata" class="w-100 rounded border">
+                                <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                                Your browser does not support embedded video.
+                            </video>
+                            {% else %}
+                            <a href="{{ media_url }}" target="_blank" rel="noopener">Open media {{ forloop.counter }}</a>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="small text-muted mt-2">
+                    {% if can_edit_submission %}
+                    You can update text and add more media until this submission is scored.
+                    {% endif %}
+                    Images: up to 30MB. Videos: up to 100MB and 15 seconds max. Allowed types: jpg, jpeg, png, webp, mp4, mov.
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2">
+                <a class="btn btn-outline-secondary" href="{% url 'season-detail' assignment.season_quest.season.slug %}">Cancel</a>
+                {% if can_edit_submission %}
+                <button class="btn btn-outline-primary" type="submit" name="submit_action" value="draft">Save Draft</button>
+                <button class="btn btn-primary" type="submit" name="submit_action" value="submit">Submit for scoring</button>
+                {% endif %}
+            </div>
+        </form>
+
+        {# ── Quest has ended ── #}
+        {% elif phase == "expired" %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body text-center py-5">
+                <h2 class="h5 mb-3">⏰ Time's up!</h2>
+                <p class="text-muted">The submission window for this quest has closed.</p>
+                {% if submission and not submission.is_draft %}
+                <div class="alert alert-success mt-3" role="status">
+                    Your submission was received. You can view it below.
+                </div>
+                {% elif submission and submission.is_draft %}
+                <div class="alert alert-warning mt-3" role="status">
+                    You had a draft saved, but it was not submitted before time ran out.
+                </div>
+                {% else %}
+                <div class="alert alert-secondary mt-3" role="status">
+                    No submission was received for this quest.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if submission %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                {% if submission.text_response %}
+                <h5 class="card-subtitle mb-2">Your Response</h5>
+                <div class="submission-text mb-3">{{ submission.text_response|linebreaks }}</div>
+                {% endif %}
+                {% if submission.media_items.all %}
+                <h5 class="card-subtitle mb-2">Media</h5>
+                <div class="row g-3">
+                    {% for media in submission.media_items.all %}
+                    <div class="col-12 col-md-6">
+                        {% with media_url=media.signed_url|default:media.blob_path_or_url %}
+                        {% if media.media_type == "image" %}
+                        <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                        {% elif media.media_type == "video" %}
+                        <video controls preload="metadata" class="w-100 rounded border">
+                            <source src="{{ media_url }}" type="{{ media.mime_type }}">
+                            Your browser does not support embedded video.
+                        </video>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if submission.score is not None %}
+                <div class="mt-3">
+                    <h5 class="card-subtitle mb-1">Score</h5>
+                    <p><strong>{{ submission.score }}/{{ assignment.season_quest.points_max }}</strong></p>
+                    {% if submission.judge_note %}
+                    <div class="small text-muted">Judge's note: {{ submission.judge_note }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+            <a href="{% url 'season-detail' assignment.season_quest.season.slug %}" class="btn btn-outline-secondary">Back to season</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(() => {
+    const questId = {{ assignment.season_quest.id }};
+    const seasonId = "{{ assignment.season_quest.season.id }}";
+    const phase = "{{ phase }}";
+    let hasTransitioned = false;
+
+    function transitionPage() {
+        if (hasTransitioned) return;
+        hasTransitioned = true;
+        window.location.reload();
+    }
+
+    // ── Countdown timer ──
+    const el = document.getElementById("countdown");
+    if (el) {
+        const target = new Date(el.dataset.target).getTime();
+
+        function pad(n) { return String(n).padStart(2, "0"); }
+
+        function tick() {
+            const diff = target - Date.now();
+            if (diff <= 0) {
+                el.textContent = "00:00:00";
+                transitionPage();
+                return;
+            }
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+
+            if (diff < 30000) {
+                el.classList.add("text-danger");
+            } else if (diff < 60000) {
+                el.classList.add("text-warning");
+            }
+        }
+
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    // ── Polling fallback: check quest status every 3 seconds ──
+    if (phase === "waiting" || phase === "active") {
+        const pollUrl = `/quests/${questId}/status-check/`;
+        setInterval(async () => {
+            if (hasTransitioned) return;
+            try {
+                const resp = await fetch(pollUrl, { cache: "no-store" });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (phase === "waiting" && data.status === "active") {
+                    transitionPage();
+                } else if (phase === "active" && (data.status === "complete" || data.status === "archived")) {
+                    transitionPage();
+                }
+            } catch (_) {}
+        }, 3000);
+    }
+
+    // ── WebSocket: instant updates when available ──
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/${seasonId}/`;
+
+    let ws = null;
+    let reconnectDelay = 1000;
+
+    function connectWs() {
+        if (document.hidden) return;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => { reconnectDelay = 1000; };
+
+        ws.onmessage = (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.season_quest_id !== questId) return;
+
+                if (data.event === "quest_started" && phase === "waiting") {
+                    transitionPage();
+                } else if (data.event === "quest_completed" && phase === "active") {
+                    transitionPage();
+                }
+            } catch (_) {}
+        };
+
+        ws.onclose = () => {
+            ws = null;
+            if (!document.hidden) {
+                setTimeout(connectWs, reconnectDelay);
+                reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+            }
+        };
+    }
+
+    connectWs();
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+            if (ws) { ws.close(); ws = null; }
+        } else {
+            if (!ws) connectWs();
+        }
+    });
+})();
+</script>
+{% endblock %}

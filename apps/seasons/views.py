@@ -128,8 +128,10 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
         )
         assignment_map = {assignment.season_quest_id: assignment for assignment in assignments}
 
+    now = timezone.now()
     for quest in quests:
         quest.participant_assignment = assignment_map.get(quest.id)
+        quest.time_expired = bool(quest.ends_at and now > quest.ends_at)
 
     submitted_assignment_count = sum(
         1

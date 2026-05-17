@@ -1,58 +1,76 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if not joined_seasons %}
+<div class="cq-hero">
+    <h1>🗺️ ConQuest</h1>
+    <p>The multiplayer scavenger hunt for conventions and events. Complete quests, upload proof, and climb the leaderboard!</p>
+    <div class="cq-hero-steps">
+        <div class="cq-hero-step">
+            <span class="cq-step-icon">🎟️</span>
+            <span class="cq-step-label">Enter code</span>
+        </div>
+        <div class="cq-hero-step">
+            <span class="cq-step-icon">📸</span>
+            <span class="cq-step-label">Complete quests</span>
+        </div>
+        <div class="cq-hero-step">
+            <span class="cq-step-icon">🏆</span>
+            <span class="cq-step-label">Win prizes</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row justify-content-center mt-4">
     <div class="col-lg-7 col-xl-6">
         {% if joined_seasons %}
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-body p-4">
-                <h2 class="h5 mb-3">Already Joined</h2>
-                <div class="list-group">
-                    {% for entry in joined_seasons %}
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                            <div>
-                                <strong>{{ entry.season.title }}</strong>
-                                <div class="small text-muted">
-                                    Joined as {{ entry.participant.handle }} ({{ entry.participant.get_role_display }})
-                                </div>
-                                {% if entry.available_to_submit %}
-                                <div class="small text-primary fw-semibold mt-1">
-                                    {{ entry.available_to_submit }} quest{% if entry.available_to_submit != 1 %}s{% endif %} available to submit.
-                                </div>
-                                {% endif %}
-                                {% if entry.pending_quest_count %}
-                                <div class="small text-muted mt-1">
-                                    {{ entry.pending_quest_count }} quest{% if entry.pending_quest_count != 1 %}s{% endif %} coming soon.
-                                </div>
-                                {% endif %}
-                            </div>
-                            <a class="btn btn-sm btn-outline-primary" href="{% url 'season-detail' entry.season.slug %}">Open season</a>
-                        </div>
+        <h2 class="h5 mb-3 d-flex align-items-center gap-2">🎮 Your Seasons</h2>
+        {% for entry in joined_seasons %}
+        <div class="cq-season-card d-flex align-items-start gap-3">
+            <div class="cq-status-bar active"></div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <strong class="d-block fs-6">{{ entry.season.title }}</strong>
+                        <span class="cq-joined-badge mt-1">✓ {{ entry.participant.handle }}</span>
                     </div>
-                    {% endfor %}
+                    <a class="btn btn-cq-primary btn-sm" href="{% url 'season-detail' entry.season.slug %}">Open →</a>
                 </div>
+                {% if entry.available_to_submit or entry.pending_quest_count %}
+                <div class="mt-2 d-flex flex-wrap gap-2">
+                    {% if entry.available_to_submit %}
+                    <span class="cq-badge cq-badge-active">{{ entry.available_to_submit }} quest{{ entry.available_to_submit|pluralize }} ready</span>
+                    {% endif %}
+                    {% if entry.pending_quest_count %}
+                    <span class="cq-badge cq-badge-pending">{{ entry.pending_quest_count }} coming soon</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
+        {% endfor %}
+
+        <hr class="my-4">
         {% endif %}
 
-        <div class="card shadow-sm border-0">
+        <div class="card cq-join-card">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h3 mb-2">Join A Quest</h1>
-                <p class="text-muted mb-4">Enter your quest code and display name to jump into a season.</p>
+                <h2 class="h4 mb-2 d-flex align-items-center gap-2">🎟️ Join A Quest</h2>
+                <p class="text-muted mb-4">Got a room code? Enter it below with your display name to jump in. No account required!</p>
 
                 <form method="post" action="{% url 'season-join-by-code' %}" class="row g-3 align-items-end">
                     {% csrf_token %}
-                    <div class="col-md-5">
+                    <div class="col-12 col-md-5">
                         <label class="form-label fw-semibold mb-1" for="id_join_code">Room Code</label>
                         {{ join_form.join_code }}
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-12 col-md-5">
                         <label class="form-label fw-semibold mb-1" for="id_handle">Display Name</label>
                         {{ join_form.handle }}
                     </div>
-                    <div class="col-md-2 d-grid">
-                        <button class="btn btn-success btn-lg" type="submit">Play</button>
+                    <div class="col-12 col-md-2 d-grid">
+                        <button class="btn btn-cq-success btn-lg" type="submit">Play</button>
                     </div>
                 </form>
                 <p class="text-muted small mt-3 mb-0">

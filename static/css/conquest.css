@@ -1,0 +1,387 @@
+/* ── ConQuest Theme ── */
+:root {
+    --cq-primary: #6366f1;
+    --cq-primary-hover: #4f46e5;
+    --cq-primary-light: #e0e7ff;
+    --cq-success: #10b981;
+    --cq-success-light: #d1fae5;
+    --cq-warning: #f59e0b;
+    --cq-warning-light: #fef3c7;
+    --cq-danger: #ef4444;
+    --cq-danger-light: #fee2e2;
+    --cq-dark: #1e1b4b;
+    --cq-muted: #64748b;
+    --cq-bg: #f8fafc;
+    --cq-card-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --cq-card-shadow-hover: 0 4px 6px rgba(0,0,0,.1), 0 2px 4px rgba(0,0,0,.06);
+    --cq-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    --cq-radius: 0.75rem;
+}
+
+body {
+    background-color: var(--cq-bg);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Navbar ── */
+.cq-navbar {
+    background: var(--cq-gradient) !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, .25);
+}
+.cq-navbar .navbar-brand {
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    font-size: 1.3rem;
+}
+.cq-navbar .navbar-brand .cq-brand-icon {
+    font-size: 1.4rem;
+    margin-right: 0.35rem;
+}
+
+/* ── Hero ── */
+.cq-hero {
+    background: var(--cq-gradient);
+    color: #fff;
+    border-radius: 0 0 2rem 2rem;
+    margin: -1.5rem -0.75rem 2rem;
+    padding: 3rem 1.5rem 2.5rem;
+    text-align: center;
+}
+.cq-hero h1 {
+    font-weight: 800;
+    font-size: 2.25rem;
+    letter-spacing: -1px;
+    margin-bottom: 0.5rem;
+}
+.cq-hero p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    max-width: 500px;
+    margin: 0 auto;
+}
+.cq-hero-steps {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+.cq-hero-step {
+    text-align: center;
+    opacity: 0.95;
+}
+.cq-hero-step .cq-step-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+.cq-hero-step .cq-step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ── Cards ── */
+.cq-card {
+    border: none;
+    border-radius: var(--cq-radius);
+    box-shadow: var(--cq-card-shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.cq-card:hover {
+    box-shadow: var(--cq-card-shadow-hover);
+}
+.cq-card .card-body { padding: 1.5rem; }
+
+/* ── Quest cards ── */
+.cq-quest-item {
+    border: none;
+    border-radius: var(--cq-radius) !important;
+    box-shadow: var(--cq-card-shadow);
+    margin-bottom: 0.75rem;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+    overflow: hidden;
+}
+.cq-quest-item:hover {
+    box-shadow: var(--cq-card-shadow-hover);
+    transform: translateY(-1px);
+}
+
+/* Status indicators */
+.cq-status-bar {
+    width: 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    align-self: stretch;
+}
+.cq-status-bar.active { background-color: var(--cq-success); }
+.cq-status-bar.pending { background-color: var(--cq-warning); }
+.cq-status-bar.complete { background-color: var(--cq-muted); }
+.cq-status-bar.submitted { background-color: var(--cq-primary); }
+.cq-status-bar.scored { background-color: var(--cq-success); }
+
+/* Status badges */
+.cq-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.cq-badge-active { background-color: var(--cq-success-light); color: #065f46; }
+.cq-badge-pending { background-color: var(--cq-warning-light); color: #92400e; }
+.cq-badge-complete { background-color: #e2e8f0; color: #475569; }
+.cq-badge-submitted { background-color: var(--cq-primary-light); color: #3730a3; }
+.cq-badge-scored { background-color: var(--cq-success-light); color: #065f46; }
+.cq-badge-draft { background-color: var(--cq-warning-light); color: #92400e; }
+.cq-badge-missed { background-color: var(--cq-danger-light); color: #991b1b; }
+
+/* ── Points pill ── */
+.cq-points {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--cq-primary);
+    background: var(--cq-primary-light);
+    padding: 0.2em 0.65em;
+    border-radius: 50px;
+}
+
+/* ── Buttons ── */
+.btn-cq-primary {
+    background: var(--cq-gradient);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 50px;
+    padding: 0.5rem 1.5rem;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+}
+.btn-cq-primary:hover {
+    opacity: 0.9;
+    color: #fff;
+    transform: translateY(-1px);
+}
+.btn-cq-success {
+    background-color: var(--cq-success);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 50px;
+    padding: 0.5rem 1.5rem;
+}
+.btn-cq-success:hover {
+    background-color: #059669;
+    color: #fff;
+}
+
+/* ── Join form ── */
+.cq-join-card {
+    border: 2px dashed #c7d2fe;
+    border-radius: var(--cq-radius);
+    background: #fff;
+}
+.cq-join-card:focus-within {
+    border-color: var(--cq-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+}
+
+/* ── Leaderboard ── */
+.cq-rank-medal {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+.cq-rank-number {
+    font-weight: 700;
+    color: var(--cq-muted);
+    font-size: 1.1rem;
+    min-width: 2rem;
+    text-align: center;
+}
+.cq-leaderboard-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--cq-radius);
+    margin-bottom: 0.5rem;
+    background: #fff;
+    box-shadow: var(--cq-card-shadow);
+    transition: box-shadow 0.2s ease;
+}
+.cq-leaderboard-row:hover {
+    box-shadow: var(--cq-card-shadow-hover);
+}
+.cq-leaderboard-row.top-1 { border-left: 4px solid #fbbf24; }
+.cq-leaderboard-row.top-2 { border-left: 4px solid #9ca3af; }
+.cq-leaderboard-row.top-3 { border-left: 4px solid #d97706; }
+.cq-leaderboard-score {
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: var(--cq-primary);
+    margin-left: auto;
+}
+
+/* ── Countdown ── */
+.cq-countdown {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-weight: 700;
+    font-size: 2.5rem;
+    letter-spacing: 2px;
+}
+
+/* ── Empty states ── */
+.cq-empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--cq-muted);
+}
+.cq-empty-state .cq-empty-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+}
+.cq-empty-state p {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Season header ── */
+.cq-season-header {
+    background: var(--cq-gradient);
+    color: #fff;
+    border-radius: var(--cq-radius);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+}
+.cq-season-header h1 {
+    font-weight: 800;
+    margin-bottom: 0;
+}
+
+/* ── Footer ── */
+.cq-footer {
+    color: var(--cq-muted);
+}
+.cq-footer a {
+    color: var(--cq-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.cq-footer a:hover {
+    color: var(--cq-primary);
+}
+
+/* ── Login ── */
+.cq-login-container {
+    max-width: 420px;
+    margin: 2rem auto;
+}
+.cq-oauth-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cq-oauth-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--cq-card-shadow-hover);
+}
+
+/* ── Connection indicator (subtle) ── */
+.cq-conn-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9ca3af;
+    border: 1px solid rgba(255,255,255,0.5);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .cq-hero {
+        padding: 2rem 1rem 2rem;
+        margin: -1.5rem -0.75rem 1.5rem;
+        border-radius: 0 0 1.5rem 1.5rem;
+    }
+    .cq-hero h1 { font-size: 1.75rem; }
+    .cq-hero-steps { gap: 1rem; }
+    .cq-season-header { padding: 1rem 1.25rem; }
+    .cq-season-header h1 { font-size: 1.25rem; }
+}
+
+@media (max-width: 576px) {
+    .cq-hero-steps { flex-direction: column; gap: 0.5rem; }
+    .cq-hero-step { display: flex; align-items: center; gap: 0.5rem; }
+    .cq-hero-step .cq-step-icon { font-size: 1.25rem; margin-bottom: 0; }
+}
+
+/* ── Quest mode tags ── */
+.cq-mode-tag {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.15em 0.5em;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* ── Participant joined card ── */
+.cq-joined-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--cq-success-light);
+    color: #065f46;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.3em 0.75em;
+    border-radius: 50px;
+}
+
+/* ── Smooth scroll ── */
+html { scroll-behavior: smooth; }
+
+/* ── Form inputs within theme ── */
+.form-control:focus, .form-select:focus {
+    border-color: var(--cq-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+}
+
+/* ── Season card on index ── */
+.cq-season-card {
+    border: none;
+    border-radius: var(--cq-radius);
+    background: #fff;
+    box-shadow: var(--cq-card-shadow);
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: box-shadow 0.2s ease;
+}
+.cq-season-card:hover {
+    box-shadow: var(--cq-card-shadow-hover);
+}
+
+/* ── Submission view ── */
+.cq-score-display {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--cq-primary);
+}
+.cq-score-max {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--cq-muted);
+}

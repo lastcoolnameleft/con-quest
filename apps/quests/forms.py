@@ -16,6 +16,8 @@ class SeasonQuestForm(BootstrapFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["rsvp_code"].required = False
         self.fields["late_grace_seconds"].required = False
+        if self.instance.pk:
+            self.fields["quest_mode"].disabled = True
         if "status" in self.fields:
             self.fields["status"].required = False
             if self.instance.pk:

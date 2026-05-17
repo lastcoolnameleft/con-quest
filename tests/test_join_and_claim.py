@@ -90,9 +90,9 @@ class JoinAndClaimTests(TestCase):
 
         response = self.client.get(reverse("season-index"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Already Joined")
+        self.assertContains(response, "Your Seasons")
         self.assertContains(response, self.season.title)
-        self.assertContains(response, "1 quest available to submit.")
+        self.assertContains(response, "1 quest ready")
 
     def test_index_shows_both_available_and_pending_quests(self):
         participant = SeasonParticipant.objects.create(
@@ -124,8 +124,8 @@ class JoinAndClaimTests(TestCase):
 
         response = self.client.get(reverse("season-index"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "1 quest available to submit.")
-        self.assertContains(response, "1 quest coming soon.")
+        self.assertContains(response, "1 quest ready")
+        self.assertContains(response, "1 coming soon")
 
     def test_claimed_account_can_open_assignment_submit_without_session_binding(self):
         user_model = get_user_model()
@@ -159,7 +159,7 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("assignment-submit", kwargs={"assignment_id": assignment.id}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Submit quest response")
+        self.assertContains(response, "Submit Quest Response")
 
     def test_season_detail_shows_already_submitted_notification(self):
         participant = SeasonParticipant.objects.create(
@@ -189,7 +189,7 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "You have submitted for this quest.")
+        self.assertContains(response, "Submitted")
 
     def test_season_detail_recovers_claimed_participant_without_session(self):
         user_model = get_user_model()
@@ -223,4 +223,4 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "You joined as notif-player")
+        self.assertContains(response, "notif-player")

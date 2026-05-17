@@ -91,7 +91,7 @@ class SubmissionResilienceTests(TestCase):
 
         get_response = self.client.get(reverse("assignment-submit", kwargs={"assignment_id": self.assignment.id}))
         self.assertEqual(get_response.status_code, 200)
-        self.assertContains(get_response, "View submission")
+        self.assertContains(get_response, "Edit Submission")
         self.assertContains(get_response, "Save Draft")
         self.assertContains(get_response, "Submit for scoring")
         self.assertContains(get_response, "original text")

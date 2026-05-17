@@ -330,6 +330,9 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
         for media in submission.media_items.all():
             media.signed_url = signed_read_url(media.blob_path_or_url)
 
+    season_quest = assignment.season_quest
+    ends_at_iso = season_quest.ends_at.isoformat() if season_quest.ends_at and season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED else None
+
     return render(
         request,
         "submissions/form.html",
@@ -339,13 +342,14 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
             "submission": submission,
             "can_edit_submission": can_edit_submission,
             "submission_is_draft": bool(submission and submission.is_draft),
+            "ends_at_iso": ends_at_iso,
         },
     )
 
 
 def view_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
     assignment = get_object_or_404(
-        QuestAssignment.objects.select_related("season_quest__season", "participant"),
+        QuestAssignment.objects.select_related("season_quest__season", "season_quest__quest", "participant"),
         id=assignment_id,
     )
     season = assignment.season_quest.season
@@ -362,7 +366,13 @@ def view_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
         messages.error(request, "You can only view your own assigned quests.")
         return redirect("season-detail", slug=season.slug)
 
+    season_quest = assignment.season_quest
     submission = getattr(assignment, "submission", None)
+
+    # Scheduled quests get the lifecycle-aware page
+    if season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED:
+        return _render_scheduled_quest(request, assignment, submission)
+
     if not submission:
         messages.error(request, "No submission found for this assignment.")
         return redirect("season-detail", slug=season.slug)
@@ -377,6 +387,59 @@ def view_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
         {
             "assignment": assignment,
             "submission": submission,
+        },
+    )
+
+
+def _render_scheduled_quest(
+    request: HttpRequest, assignment: QuestAssignment, submission: Submission | None
+) -> HttpResponse:
+    season_quest = assignment.season_quest
+    now = timezone.now()
+
+    # Determine the quest phase
+    if season_quest.status in {SeasonQuest.Status.COMPLETE, SeasonQuest.Status.ARCHIVED}:
+        phase = "expired"
+    elif season_quest.ends_at and now > season_quest.ends_at:
+        if season_quest.allow_late_submissions:
+            grace_deadline = season_quest.ends_at + timedelta(seconds=season_quest.late_grace_seconds)
+            phase = "active" if now <= grace_deadline else "expired"
+        else:
+            phase = "expired"
+    elif season_quest.status == SeasonQuest.Status.ACTIVE and season_quest.started_at:
+        phase = "active"
+    elif season_quest.opens_at and now >= season_quest.opens_at and season_quest.status == SeasonQuest.Status.ACTIVE:
+        phase = "active"
+    else:
+        phase = "waiting"
+
+    # ISO timestamps for JavaScript countdowns
+    opens_at_iso = season_quest.opens_at.isoformat() if season_quest.opens_at else None
+    ends_at_iso = season_quest.ends_at.isoformat() if season_quest.ends_at else None
+
+    # Prepare submission form for active phase
+    form = None
+    can_edit_submission = False
+    if phase == "active":
+        can_edit_submission = assignment.status != QuestAssignment.Status.SCORED
+        form = SubmissionForm(initial={"text_response": submission.text_response if submission else ""})
+
+    # Fetch signed URLs for media on existing submissions
+    if submission:
+        for media in submission.media_items.all():
+            media.signed_url = signed_read_url(media.blob_path_or_url)
+
+    return render(
+        request,
+        "submissions/scheduled_quest.html",
+        {
+            "assignment": assignment,
+            "submission": submission,
+            "phase": phase,
+            "opens_at_iso": opens_at_iso,
+            "ends_at_iso": ends_at_iso,
+            "form": form,
+            "can_edit_submission": can_edit_submission,
         },
     )
 

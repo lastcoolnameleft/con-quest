@@ -371,7 +371,7 @@ class FullLifecycleAndScaleTests(TestCase):
         )
 
         # Participant: no action buttons shown for pending quest
-        self.assertNotContains(player_response, "Start Quest")
+        self.assertNotContains(player_response, "▶ Start")
         self.assertNotContains(player_response, "Edit Submission")
 
         # --- Step 4: Transition to ACTIVE ---
@@ -387,10 +387,10 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertContains(admin_response, "Visible Quest")
         self.assertContains(admin_response, "Active")
 
-        # Participant: quest visible with "Start Quest" button
+        # Participant: quest visible with "Start" button
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
         self.assertContains(player_response, "Visible Quest")
-        self.assertContains(player_response, "Start Quest")
+        self.assertContains(player_response, "Start")
 
         # --- Step 5: Participant claims and submits ---
         claim_response = player_client.get(
@@ -399,9 +399,9 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertEqual(claim_response.status_code, 302)
         assignment = QuestAssignment.objects.get(season_quest=season_quest, participant=player_participant)
 
-        # After claiming but before submitting: "Start Quest" button (assignment is pending)
+        # After claiming but before submitting: "Start" button (assignment is pending)
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "Start Quest")
+        self.assertContains(player_response, "Start")
 
         # Save a draft
         player_client.post(
@@ -411,11 +411,11 @@ class FullLifecycleAndScaleTests(TestCase):
         assignment.refresh_from_db()
         self.assertEqual(assignment.status, QuestAssignment.Status.PENDING)
 
-        # Participant: sees draft warning and "Edit Quest" button
+        # Participant: sees draft warning and "Continue" button
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "You have started this quest, but it is a draft and NOT submitted.")
-        self.assertContains(player_response, "Edit Quest")
-        self.assertNotContains(player_response, "Start Quest")
+        self.assertContains(player_response, "Draft")
+        self.assertContains(player_response, "Continue")
+        self.assertNotContains(player_response, "▶ Start")
 
         # Submit for real
         player_client.post(
@@ -425,14 +425,14 @@ class FullLifecycleAndScaleTests(TestCase):
         assignment.refresh_from_db()
         self.assertEqual(assignment.status, QuestAssignment.Status.SUBMITTED)
 
-        # Participant: sees submitted status and "Edit Submission" button
+        # Participant: sees submitted status and "Edit" button
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "You have submitted for this quest.")
-        self.assertContains(player_response, "Edit Submission")
+        self.assertContains(player_response, "Submitted")
+        self.assertContains(player_response, "Edit")
 
         # Home page: no quests available (already submitted for the only active one)
         player_home = player_client.get(reverse("season-index"))
-        self.assertNotContains(player_home, "available to submit")
+        self.assertNotContains(player_home, "quest ready")
 
         # --- Step 6: Admin scores the submission ---
         submission = Submission.objects.get(quest_assignment=assignment)
@@ -443,11 +443,11 @@ class FullLifecycleAndScaleTests(TestCase):
         assignment.refresh_from_db()
         self.assertEqual(assignment.status, QuestAssignment.Status.SCORED)
 
-        # Participant: sees scored status with score and "View Submission" button
+        # Participant: sees scored status with score and "View" button
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "You have submitted for this quest and it has been scored.")
-        self.assertContains(player_response, "Score: 4/5")
-        self.assertContains(player_response, "View Submission")
+        self.assertContains(player_response, "Score")
+        self.assertContains(player_response, "4/5")
+        self.assertContains(player_response, "View")
         self.assertNotContains(player_response, "Edit Submission")
 
         # --- Step 7: Transition to COMPLETE (Closed) ---
@@ -463,13 +463,13 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertContains(admin_response, "Visible Quest")
         self.assertContains(admin_response, "Closed")
 
-        # Participant: sees closed message with score and "View Submission" button
+        # Participant: sees closed message with score and "View" button
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "You have submitted for this quest and it is closed.")
-        self.assertContains(player_response, "Score: 4/5")
-        self.assertContains(player_response, "View Submission")
+        self.assertContains(player_response, "Score")
+        self.assertContains(player_response, "4/5")
+        self.assertContains(player_response, "View")
         self.assertNotContains(player_response, "Edit Submission")
-        self.assertNotContains(player_response, "Start Quest")
+        self.assertNotContains(player_response, "▶ Start")
 
         # --- Step 8: Transition to ARCHIVED ---
         self.host_client.post(
@@ -525,9 +525,9 @@ class FullLifecycleAndScaleTests(TestCase):
         # Player joins
         player_client, _ = self._join_player(season=season, handle="latecomer")
 
-        # Active quest: player sees Start Quest
+        # Active quest: player sees Start
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "Start Quest")
+        self.assertContains(player_response, "Start")
         self.assertNotContains(player_response, "View Submission")
 
         # Close the quest without player submitting
@@ -540,7 +540,7 @@ class FullLifecycleAndScaleTests(TestCase):
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
         self.assertContains(player_response, "Unsubmitted Quest")
         self.assertContains(player_response, "Closed")
-        self.assertNotContains(player_response, "Start Quest")
+        self.assertNotContains(player_response, "▶ Start")
         self.assertNotContains(player_response, "Edit Submission")
         self.assertNotContains(player_response, "View Submission")
 

@@ -1,44 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Leaderboard: {{ season.title }}</h1>
-    <a class="btn btn-outline-secondary" href="{% url 'season-detail' season.slug %}">Back to season</a>
+<div class="cq-season-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="h3 mb-0">🏆 {{ season.title }} — Leaderboard</h1>
+    <a class="btn btn-sm btn-outline-light" href="{% url 'season-detail' season.slug %}">← Back to season</a>
 </div>
 
 {% if leaderboard %}
-<h2 class="h5 mb-2">Overall standings</h2>
-<div class="table-responsive mb-4">
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col">Rank</th>
-            <th scope="col">Handle</th>
-            <th scope="col">Role</th>
-            <th scope="col">Score</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in leaderboard %}
-        <tr>
-            <td>{{ row.rank }}</td>
-            <td>{{ row.handle }}</td>
-            <td>{{ row.role }}</td>
-            <td>{{ row.total_score }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<h2 class="h5 mb-3">Overall Standings</h2>
+<div class="mb-4">
+    {% for row in leaderboard %}
+    <div class="cq-leaderboard-row{% if row.rank == 1 %} top-1{% elif row.rank == 2 %} top-2{% elif row.rank == 3 %} top-3{% endif %}">
+        <span class="{% if row.rank <= 3 %}cq-rank-medal{% else %}cq-rank-number{% endif %}">
+            {% if row.rank == 1 %}🥇{% elif row.rank == 2 %}🥈{% elif row.rank == 3 %}🥉{% else %}{{ row.rank }}{% endif %}
+        </span>
+        <div>
+            <strong>{{ row.handle }}</strong>
+            <div class="small text-muted">{{ row.role }}</div>
+        </div>
+        <span class="cq-leaderboard-score">{{ row.total_score }}</span>
+    </div>
+    {% endfor %}
 </div>
 {% else %}
-<p class="text-muted mb-4">No participants yet.</p>
+<div class="cq-empty-state">
+    <span class="cq-empty-icon">🏆</span>
+    <p>No participants yet.</p>
+    <p class="small">Scores will appear here once players submit and get scored.</p>
+</div>
 {% endif %}
 
 {% if quest_breakdowns %}
-<h2 class="h5 mb-2">Per-quest results</h2>
+<h2 class="h5 mb-3">Per-Quest Results</h2>
 <div class="accordion" id="quest-breakdown-accordion">
     {% for q in quest_breakdowns %}
-    <div class="accordion-item">
+    <div class="accordion-item border-0 cq-card mb-2">
         <h3 class="accordion-header">
             <button class="accordion-button collapsed" type="button"
                 data-bs-toggle="collapse"
@@ -46,8 +42,8 @@
                 aria-expanded="false"
                 aria-controls="quest-breakdown-{{ forloop.counter }}">
                 {{ q.title }}
-                <span class="badge text-bg-secondary ms-2">{{ q.status }}</span>
-                <span class="badge text-bg-light border ms-1 text-muted">{{ q.entries|length }} participant{{ q.entries|length|pluralize }}</span>
+                <span class="cq-badge cq-badge-{{ q.status }} ms-2">{{ q.status }}</span>
+                <span class="small text-muted ms-2">{{ q.entries|length }} participant{{ q.entries|length|pluralize }}</span>
             </button>
         </h3>
         <div id="quest-breakdown-{{ forloop.counter }}" class="accordion-collapse collapse">
@@ -65,16 +61,20 @@
                     <tbody>
                         {% for entry in q.entries %}
                         <tr>
-                            <td>{{ entry.rank }}</td>
+                            <td>
+                                {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}{{ entry.rank }}{% endif %}
+                            </td>
                             <td>{{ entry.handle }}</td>
-                            <td>{{ entry.status }}</td>
-                            <td>{% if entry.score is not None %}{{ entry.score }}{% else %}&mdash;{% endif %}</td>
+                            <td><span class="cq-badge cq-badge-{{ entry.status }}">{{ entry.status }}</span></td>
+                            <td>{% if entry.score is not None %}<strong>{{ entry.score }}</strong>{% else %}&mdash;{% endif %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <p class="text-muted p-3 mb-0">No participants for this quest yet.</p>
+                <div class="cq-empty-state py-3">
+                    <p class="mb-0 small">No participants for this quest yet.</p>
+                </div>
                 {% endif %}
             </div>
         </div>

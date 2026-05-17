@@ -123,7 +123,7 @@ class ScoringStaffAccessTests(TestCase):
         response = self.client.get(reverse("season-scoring-queue", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Scoring queue")
+        self.assertContains(response, "Scoring Queue")
         self.assertContains(response, self.player.handle)
 
     def test_staff_user_can_score_without_session_participant(self):
