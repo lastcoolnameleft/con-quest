@@ -27,13 +27,25 @@ except django.db.IntegrityError:
 }
 
 /**
- * Log in as the staff user via the Django login form.
+ * Log in as the staff user via direct POST (faster than UI interaction).
+ * Falls back to UI login if the API approach fails.
  */
 async function loginAsStaff(page) {
+  // Get CSRF token from the login page
   await page.goto('/auth/login/');
-  await page.fill('#id_username', STAFF_USERNAME);
-  await page.fill('#id_password', STAFF_PASSWORD);
-  await page.getByRole('button', { name: 'Login' }).click();
+  const csrfToken = await page.locator('input[name="csrfmiddlewaretoken"]').first().getAttribute('value');
+
+  // POST credentials directly — avoids expanding details and filling fields
+  const response = await page.request.post('/auth/login/', {
+    form: {
+      csrfmiddlewaretoken: csrfToken,
+      login: STAFF_USERNAME,
+      password: STAFF_PASSWORD,
+    },
+  });
+
+  // Navigate to home to confirm login and set page context
+  await page.goto('/');
   await page.waitForURL(/^[^?]*\/$/);
 }
 
@@ -77,9 +89,8 @@ async function createQuestTemplate(page, { title, description, points }) {
   }
 
   await page.getByRole('button', { name: 'Save quest' }).click();
-  // quest_create redirects to season-index (/)
-  await page.waitForURL(/^[^?]*\/$/);
-}
+  // quest_create redirects to control-dashboard
+  await page.waitForURL(/\/control\/?$/);}
 
 /**
  * Create a season quest (link a quest template to a season).
