@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -17,6 +17,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements/*.txt
 
       - name: Install dependencies
         run: |
@@ -31,9 +33,11 @@ jobs:
         run: python manage.py check
 
       - name: Run tests
-        run: python manage.py test
+        run: pytest --tb=short -q
 
   e2e:
+    # Only run E2E on pull requests to save CI minutes
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     services:
@@ -55,6 +59,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements/*.txt
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -71,8 +77,20 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Apply migrations
         run: python manage.py migrate

@@ -8,7 +8,7 @@ const port = urlObj.port || '8000';
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  timeout: 10_000,
   fullyParallel: true,
   retries: 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
