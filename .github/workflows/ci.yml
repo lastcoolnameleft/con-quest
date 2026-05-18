@@ -36,8 +36,6 @@ jobs:
         run: pytest --tb=short -q
 
   e2e:
-    # Only run E2E on pull requests to save CI minutes
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     services:
