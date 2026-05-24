@@ -89,6 +89,7 @@
                             </form>
                             {% endif %}
                             <a class="btn btn-sm btn-outline-warning" href="{% url 'season-quest-edit' quest.id %}">Edit</a>
+                            <a class="btn btn-sm btn-outline-info" href="{% url 'control-season-quest-detail' quest.id %}">Details</a>
                             <a class="btn btn-sm btn-outline-danger" href="{% url 'season-quest-delete' quest.id %}">Delete</a>
                         </span>
                     </div>

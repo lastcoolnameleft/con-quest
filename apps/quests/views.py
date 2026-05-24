@@ -366,6 +366,44 @@ def _can_manage_quests(participant: SeasonParticipant | None) -> bool:
     return participant.role in {SeasonParticipant.Role.HOST, SeasonParticipant.Role.ADMIN}
 
 
+def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResponse:
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season", "quest"),
+        id=quest_id,
+    )
+    if not can_manage_season(request, season_quest.season):
+        messages.error(request, "Host or admin access required.")
+        return redirect("season-index")
+
+    assignments = (
+        QuestAssignment.objects.filter(season_quest=season_quest)
+        .select_related("participant", "submission")
+        .order_by("-submission__score", "participant__handle")
+    )
+
+    submissions_data = []
+    for assignment in assignments:
+        submission = getattr(assignment, "submission", None)
+        submissions_data.append({
+            "assignment": assignment,
+            "participant": assignment.participant,
+            "submission": submission,
+            "score": submission.score if submission else None,
+            "status": assignment.get_status_display(),
+        })
+
+    return render(
+        request,
+        "control/season_quest_detail.html",
+        {
+            "season_quest": season_quest,
+            "season": season_quest.season,
+            "submissions_data": submissions_data,
+            "participant_count": assignments.count(),
+        },
+    )
+
+
 def season_quest_status_check(request: HttpRequest, quest_id: int) -> JsonResponse:
     """Lightweight polling endpoint returning the current quest status."""
     season_quest = get_object_or_404(SeasonQuest, id=quest_id)

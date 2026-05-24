@@ -1,5 +1,6 @@
 from django.urls import path
 
+from apps.quests.views import control_season_quest_detail
 from apps.quests.views import enroll_scheduled_quest
 from apps.quests.views import quest_create
 from apps.quests.views import quest_delete
@@ -22,4 +23,5 @@ urlpatterns = [
     path("quests/<int:quest_id>/status/", transition_season_quest_status, name="season-quest-status"),
     path("quests/<int:quest_id>/status-check/", season_quest_status_check, name="season-quest-status-check"),
     path("quests/<int:quest_id>/enroll/", enroll_scheduled_quest, name="season-quest-enroll"),
+    path("control/quests/<int:quest_id>/", control_season_quest_detail, name="control-season-quest-detail"),
 ]

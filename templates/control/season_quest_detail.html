@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block content %}
+<nav class="mb-3" aria-label="breadcrumb">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'control-dashboard' %}">Control Center</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'season-detail' season.slug %}">{{ season.title }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ season_quest.resolved_title }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ season_quest.resolved_title }}</h1>
+        <span class="cq-badge cq-badge-{{ season_quest.status }}">{{ season_quest.get_status_display }}</span>
+        <span class="badge text-bg-light border ms-1">👥 {{ participant_count }} participant{{ participant_count|pluralize }}</span>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'control-dashboard' %}">← Back</a>
+</div>
+
+{% if season_quest.resolved_description %}
+<div class="card cq-card mb-4">
+    <div class="card-body">
+        <h2 class="h6 fw-bold mb-2">📋 Description</h2>
+        <div class="text-muted">{{ season_quest.resolved_description|linebreaksbr }}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card cq-card mb-4">
+    <div class="card-body">
+        <h2 class="h6 fw-bold mb-3">📊 Submissions</h2>
+        {% if submissions_data %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0" id="submissions-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Player</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in submissions_data %}
+                    <tr>
+                        <td><strong>{{ item.participant.handle }}</strong></td>
+                        <td><span class="cq-badge cq-badge-{{ item.assignment.status }}">{{ item.status }}</span></td>
+                        <td>
+                            {% if item.score is not None %}
+                            <strong>{{ item.score }}</strong>/{{ season_quest.points_max }}
+                            {% else %}
+                            &mdash;
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.submission %}
+                            {{ item.submission.submitted_at|timezone:season.timezone|date:"M j, g:i a" }}
+                            {% if item.submission.is_late %}<span class="cq-badge cq-badge-draft ms-1">Late</span>{% endif %}
+                            {% else %}
+                            &mdash;
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.submission %}
+                            <a class="btn btn-sm btn-outline-primary" href="{% url 'assignment-view' item.assignment.id %}">View</a>
+                            {% if item.assignment.status == "submitted" %}
+                            <a class="btn btn-sm btn-outline-warning" href="{% url 'season-scoring-queue' season.slug %}">Score</a>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="cq-empty-state py-3">
+            <p class="mb-0 text-muted">No participants yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(() => {
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/{{ season.id }}/`;
+    const seasonQuestId = {{ season_quest.id }};
+
+    function connectWs() {
+        const socket = new WebSocket(wsUrl);
+        socket.onmessage = (message) => {
+            try {
+                const payload = JSON.parse(message.data);
+                if (payload.season_quest_id === seasonQuestId &&
+                    (payload.event === "submission_created" || payload.event === "submission_scored")) {
+                    window.location.reload();
+                }
+            } catch (_) {}
+        };
+        socket.onclose = () => {
+            setTimeout(connectWs, 3000);
+        };
+    }
+
+    connectWs();
+})();
+</script>
+{% endblock %}
