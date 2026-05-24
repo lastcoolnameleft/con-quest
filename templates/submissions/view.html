@@ -68,7 +68,7 @@
                         {% with media_url=media.signed_url|default:media.blob_path_or_url %}
                         {% if media.media_type == "image" %}
                         <figure class="figure">
-                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border figure-img">
+                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border figure-img cq-expandable-img" role="button" tabindex="0" data-full-src="{{ media_url }}">
                             <figcaption class="figure-caption small text-muted">{{ media.uploaded_at|timezone:assignment.season_quest.season.timezone|date:"M j, Y, g:i a" }}</figcaption>
                         </figure>
                         {% elif media.media_type == "video" %}
@@ -95,4 +95,38 @@
         </div>
     </div>
 </div>
+
+<!-- Image lightbox modal -->
+<div class="modal fade" id="imageLightbox" tabindex="-1" aria-label="Expanded image" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="text-end mb-2">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal" aria-label="Close">✕</button>
+            </div>
+            <img id="lightbox-img" src="" alt="Expanded submission image" class="img-fluid rounded mx-auto d-block" style="max-height: 85vh;">
+        </div>
+    </div>
+</div>
+<script>
+(() => {
+    const lightboxImg = document.getElementById("lightbox-img");
+    const modal = document.getElementById("imageLightbox");
+    if (!lightboxImg || !modal) return;
+    const bsModal = new bootstrap.Modal(modal);
+
+    document.querySelectorAll(".cq-expandable-img").forEach(img => {
+        img.style.cursor = "zoom-in";
+        img.addEventListener("click", () => {
+            lightboxImg.src = img.dataset.fullSrc || img.src;
+            bsModal.show();
+        });
+        img.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                img.click();
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

@@ -41,7 +41,7 @@
     This response is saved as a draft and is not yet submitted for scoring.
 </div>
 {% endif %}
-<form method="post" enctype="multipart/form-data" class="card cq-card">
+<form method="post" enctype="multipart/form-data" class="card cq-card position-relative">
     {% csrf_token %}
     <div class="card-body">
         {% include "includes/form_fields.html" with form=form %}
@@ -53,7 +53,7 @@
                 <div class="col-12 col-md-6">
                     {% with media_url=media.signed_url|default:media.blob_path_or_url %}
                     {% if media.media_type == "image" %}
-                    <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                    <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border cq-expandable-img" role="button" tabindex="0" data-full-src="{{ media_url }}">
                     {% elif media.media_type == "video" %}
                     <video controls preload="metadata" class="w-100 rounded border">
                         <source src="{{ media_url }}" type="{{ media.mime_type }}">
@@ -83,7 +83,28 @@
         <button class="btn btn-primary" type="submit" name="submit_action" value="submit">Submit for scoring</button>
         {% endif %}
     </div>
+    <div id="submit-overlay" class="d-none position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(255,255,255,0.85); z-index: 10; border-radius: inherit;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">Submitting...</span></div>
+            <div class="fw-semibold">Submitting&hellip;</div>
+        </div>
+    </div>
 </form>
+<script>
+(() => {
+    const form = document.querySelector('form[enctype="multipart/form-data"]');
+    if (!form) return;
+    const overlay = document.getElementById("submit-overlay");
+
+    form.addEventListener("submit", () => {
+        overlay.classList.remove("d-none");
+        overlay.classList.add("d-flex");
+        form.querySelectorAll('button[type="submit"]').forEach(btn => {
+            btn.disabled = true;
+        });
+    });
+})();
+</script>
 {% if ends_at_iso %}
 <script>
 (() => {
@@ -130,4 +151,99 @@
 })();
 </script>
 {% endif %}
+
+<!-- Image lightbox modal -->
+<div class="modal fade" id="imageLightbox" tabindex="-1" aria-label="Expanded image" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="text-end mb-2">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal" aria-label="Close">✕</button>
+            </div>
+            <img id="lightbox-img" src="" alt="Expanded submission image" class="img-fluid rounded mx-auto d-block" style="max-height: 85vh;">
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    // Lightbox for existing images
+    const lightboxImg = document.getElementById("lightbox-img");
+    const modal = document.getElementById("imageLightbox");
+    if (lightboxImg && modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        document.querySelectorAll(".cq-expandable-img").forEach(img => {
+            img.style.cursor = "zoom-in";
+            img.addEventListener("click", () => {
+                lightboxImg.src = img.dataset.fullSrc || img.src;
+                bsModal.show();
+            });
+            img.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); img.click(); }
+            });
+        });
+    }
+
+    // Mobile photo accumulation: keep files across multiple captures
+    const fileInput = document.getElementById("id_media_files");
+    if (!fileInput) return;
+
+    const accumulated = new DataTransfer();
+    const previewContainer = document.createElement("div");
+    previewContainer.className = "row g-2 mt-2";
+    previewContainer.id = "media-preview";
+    fileInput.parentElement.appendChild(previewContainer);
+
+    fileInput.addEventListener("change", () => {
+        const newFiles = fileInput.files;
+        for (let i = 0; i < newFiles.length; i++) {
+            accumulated.items.add(newFiles[i]);
+        }
+        fileInput.files = accumulated.files;
+        renderPreviews();
+    });
+
+    function renderPreviews() {
+        previewContainer.innerHTML = "";
+        const files = accumulated.files;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const col = document.createElement("div");
+            col.className = "col-4 col-md-3 position-relative";
+
+            if (file.type.startsWith("image/")) {
+                const img = document.createElement("img");
+                img.className = "img-fluid rounded border";
+                img.alt = file.name;
+                img.src = URL.createObjectURL(file);
+                col.appendChild(img);
+            } else {
+                const badge = document.createElement("div");
+                badge.className = "border rounded p-2 small text-muted text-truncate";
+                badge.textContent = file.name;
+                col.appendChild(badge);
+            }
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle lh-1";
+            removeBtn.innerHTML = "✕";
+            removeBtn.setAttribute("aria-label", `Remove ${file.name}`);
+            removeBtn.addEventListener("click", () => {
+                const dt = new DataTransfer();
+                for (let j = 0; j < accumulated.files.length; j++) {
+                    if (j !== i) dt.items.add(accumulated.files[j]);
+                }
+                accumulated.items.clear();
+                for (let j = 0; j < dt.files.length; j++) {
+                    accumulated.items.add(dt.files[j]);
+                }
+                fileInput.files = accumulated.files;
+                renderPreviews();
+            });
+            col.appendChild(removeBtn);
+            previewContainer.appendChild(col);
+        }
+    }
+})();
+</script>
 {% endblock %}
