@@ -113,6 +113,19 @@
     let pollIntervalId = null;
     let reconnectDelay = 1000;
 
+    function showEventToast(message, linkUrl) {
+        const container = document.querySelector(".toast-container") || document.body;
+        const toast = document.createElement("div");
+        toast.className = "toast show align-items-center text-bg-primary border-0 mb-2";
+        toast.setAttribute("role", "alert");
+        const body = linkUrl
+            ? `<a href="${linkUrl}" class="text-white text-decoration-underline">${message}</a>`
+            : message;
+        toast.innerHTML = `<div class="d-flex"><div class="toast-body">${body}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 8000);
+    }
+
     async function pollFallback() {
         try {
             const response = await fetch(seasonStateUrl, { headers: { "Accept": "application/json" } });
@@ -146,7 +159,16 @@
         socket.onmessage = (message) => {
             try {
                 const payload = JSON.parse(message.data);
-                if (payload.event === "quest_started" || payload.event === "submission_created" || payload.event === "submission_scored") {
+                if (payload.event === "quest_started" || payload.event === "quest_activated") {
+                    showEventToast(`🎯 Quest "${payload.title || "New Quest"}" is now live!`, payload.quest_url);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else if (payload.event === "submission_scored") {
+                    showEventToast(`🏆 ${payload.participant_handle || "A player"} scored ${payload.score}/5 on "${payload.quest_title || "a quest"}"`, payload.leaderboard_url);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else if (payload.event === "submission_created") {
+                    showEventToast(`📸 ${payload.participant_handle || "A player"} submitted "${payload.quest_title || "a quest"}"`, payload.scoring_url);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else if (payload.event === "quest_completed") {
                     window.location.reload();
                 }
             } catch (error) {

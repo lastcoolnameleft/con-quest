@@ -34,6 +34,8 @@ def _activate_quest_window(season_quest: SeasonQuest) -> None:
         payload={
             "event": "quest_started",
             "season_quest_id": season_quest.id,
+            "title": season_quest.resolved_title,
+            "quest_url": f"/seasons/{season_quest.season.slug}/",
             "started_at": season_quest.started_at.isoformat(),
             "ends_at": season_quest.ends_at.isoformat(),
             "server_time": now.isoformat(),
@@ -272,6 +274,15 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
         else:
             season_quest.status = SeasonQuest.Status.ACTIVE
             season_quest.save(update_fields=["status", "updated_at"])
+            broadcast_season_event(
+                season_id=season_quest.season_id,
+                payload={
+                    "event": "quest_activated",
+                    "season_quest_id": season_quest.id,
+                    "title": season_quest.resolved_title,
+                    "quest_url": f"/seasons/{season_quest.season.slug}/",
+                },
+            )
         messages.success(request, "Quest is now active.")
         return redirect("control-dashboard")
 

@@ -306,6 +306,9 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
                             "assignment_id": assignment.id,
                             "season_quest_id": assignment.season_quest_id,
                             "participant_id": assignment.participant_id,
+                            "participant_handle": assignment.participant.handle,
+                            "quest_title": assignment.season_quest.resolved_title,
+                            "scoring_url": f"/seasons/{season.slug}/scoring/",
                         },
                     )
                     messages.success(request, "Submission received.")
@@ -598,6 +601,10 @@ def score_submission(request: HttpRequest, submission_id: int) -> HttpResponse:
             "submission_id": submission.id,
             "assignment_id": assignment.id,
             "score": new_score,
+            "participant_handle": assignment.participant.handle,
+            "participant_id": assignment.participant_id,
+            "quest_title": assignment.season_quest.resolved_title,
+            "leaderboard_url": f"/seasons/{season.slug}/leaderboard/",
         },
     )
 
