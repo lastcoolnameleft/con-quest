@@ -7,6 +7,7 @@ from apps.seasons.views import connection_test_global
 from apps.seasons.views import index
 from apps.seasons.views import join_season_by_code
 from apps.seasons.views import join_season
+from apps.seasons.views import season_archive
 from apps.seasons.views import season_create
 from apps.seasons.views import season_delete
 from apps.seasons.views import season_edit
@@ -26,4 +27,5 @@ urlpatterns = [
     path("control/seasons/new/", season_create, name="control-season-create"),
     path("control/seasons/<slug:slug>/edit/", season_edit, name="control-season-edit"),
     path("control/seasons/<slug:slug>/delete/", season_delete, name="control-season-delete"),
+    path("control/seasons/<slug:slug>/archive/", season_archive, name="control-season-archive"),
 ]

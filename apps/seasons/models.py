@@ -9,6 +9,7 @@ class Season(models.Model):
         DRAFT = "draft", "Draft"
         ACTIVE = "active", "Active"
         CLOSED = "closed", "Closed"
+        ARCHIVED = "archived", "Archived"
 
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -22,6 +23,18 @@ class Season(models.Model):
         if not self.join_code:
             self.join_code = secrets.token_urlsafe(6)[:8].upper()
         super().save(*args, **kwargs)
+
+    def allowed_next_statuses(self) -> set[str]:
+        transitions = {
+            self.Status.DRAFT: {self.Status.ACTIVE},
+            self.Status.ACTIVE: {self.Status.CLOSED, self.Status.ARCHIVED},
+            self.Status.CLOSED: {self.Status.ARCHIVED},
+            self.Status.ARCHIVED: set(),
+        }
+        return transitions.get(self.status, set())
+
+    def can_transition_to(self, target_status: str) -> bool:
+        return target_status in self.allowed_next_statuses()
 
     def __str__(self) -> str:
         return self.title

@@ -50,6 +50,7 @@ def index(request: HttpRequest) -> HttpResponse:
     joined_participants = list(
         SeasonParticipant.objects.filter(participant_filter)
         .select_related("season")
+        .exclude(season__status=Season.Status.ARCHIVED)
         .order_by("-joined_at")
         .distinct()
     )
@@ -285,6 +286,23 @@ def season_delete(request: HttpRequest, slug: str) -> HttpResponse:
         return redirect("control-dashboard")
 
     return render(request, "control/season_confirm_delete.html", {"season": season})
+
+
+@require_POST
+def season_archive(request: HttpRequest, slug: str) -> HttpResponse:
+    season = get_object_or_404(Season, slug=slug)
+    if not can_manage_season(request, season):
+        messages.error(request, "Host or admin access required.")
+        return redirect("season-index")
+
+    if not season.can_transition_to(Season.Status.ARCHIVED):
+        messages.error(request, f"Cannot archive a season with status '{season.get_status_display()}'.")
+        return redirect("control-dashboard")
+
+    season.status = Season.Status.ARCHIVED
+    season.save(update_fields=["status", "updated_at"])
+    messages.success(request, f"Season '{season.title}' archived.")
+    return redirect("control-dashboard")
 
 
 @require_POST

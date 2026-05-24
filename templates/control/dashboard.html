@@ -36,6 +36,12 @@
                         <a class="btn btn-sm btn-outline-secondary" href="{% url 'season-detail' season.slug %}">View</a>
                         <a class="btn btn-sm btn-outline-primary" href="{% url 'season-quest-create' season.slug %}">Add Quest</a>
                         <a class="btn btn-sm btn-outline-warning" href="{% url 'control-season-edit' season.slug %}">Edit</a>
+                        {% if season.status != "archived" %}
+                        <form method="post" action="{% url 'control-season-archive' season.slug %}">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-secondary" type="submit" onclick="return confirm('Archive this season?')">Archive</button>
+                        </form>
+                        {% endif %}
                         <a class="btn btn-sm btn-outline-danger" href="{% url 'control-season-delete' season.slug %}">Delete</a>
                     </div>
                 </div>
