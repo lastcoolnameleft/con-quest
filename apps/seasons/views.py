@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import IntegrityError
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -118,6 +118,7 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
     quests = list(
         season.quests.filter(status__in=visible_statuses)
         .select_related("quest")
+        .annotate(participant_count=Count("assignments"))
         .order_by("-created_at", "-id")
     )
     assignment_map: dict[int, QuestAssignment] = {}

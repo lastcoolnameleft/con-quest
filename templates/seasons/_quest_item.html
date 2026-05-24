@@ -11,6 +11,9 @@
                     <span class="cq-badge cq-badge-{{ quest.status }}">{{ quest.get_status_display }}</span>
                     {% endif %}
                     <span class="cq-mode-tag">{{ quest.get_quest_mode_display }}</span>
+                    {% if quest.participant_count %}
+                    <span class="badge text-bg-light border small" title="{{ quest.participant_count }} participant{{ quest.participant_count|pluralize }}">👥 {{ quest.participant_count }}</span>
+                    {% endif %}
                 </div>
                 {% if quest.participant_assignment %}
                 <div class="mt-2">
