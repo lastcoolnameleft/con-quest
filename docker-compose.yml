@@ -1,10 +1,30 @@
 services:
-  web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
+  conquest:
+    container_name: ${COMPOSE_PROJECT_NAME:-conquest}
+    image: ${IMAGE:-ghcr.io/lastcoolnameleft/conquest:latest}
     env_file:
       - ${ENV_FILE:-.env}
+    volumes:
+      - ${DATA_DIR:-.}/db:/app/db
+      - ${DATA_DIR:-.}/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "conquest.env=${DEPLOY_ENV:-staging}"
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik}"
+      # Main router
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}.rule=Host(`${TRAEFIK_HOST:-localhost}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}.tls.certresolver=myresolver"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME:-conquest}.loadbalancer.server.port=8000"
+      # WWW redirect router
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}-www.rule=Host(`www.${TRAEFIK_HOST:-localhost}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}-www.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}-www.tls.certresolver=myresolver"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-conquest}-www.middlewares=${COMPOSE_PROJECT_NAME:-conquest}-www-redirect"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-conquest}-www-redirect.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-conquest}-www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-conquest}-www-redirect.redirectregex.permanent=true"
+    restart: unless-stopped

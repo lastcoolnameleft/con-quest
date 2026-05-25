@@ -5,6 +5,9 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+ARG GIT_SHA=dev
+ENV GIT_SHA=${GIT_SHA}
+
 COPY requirements/base.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 

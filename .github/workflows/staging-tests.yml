@@ -1,0 +1,82 @@
+name: Staging Smoke Tests
+
+on:
+  workflow_run:
+    workflows: ["Build and Push to GHCR"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Staging URL to test against"
+        default: ""
+
+env:
+  STG_BASE_URL: ${{ inputs.base_url || secrets.STG_BASE_URL }}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  wait-for-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      sha_match: ${{ steps.poll.outputs.sha_match }}
+    steps:
+      - name: Wait for new version to be live
+        id: poll
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "sha_match=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          EXPECTED_SHA="${{ github.event.workflow_run.head_sha }}"
+          EXPECTED_SHORT="${EXPECTED_SHA:0:7}"
+          HEALTH_URL="${{ env.STG_BASE_URL }}/api/health/"
+          MAX_ATTEMPTS=30
+          SLEEP_SECONDS=10
+          echo "Waiting for SHA ${EXPECTED_SHORT} at ${HEALTH_URL}..."
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            RESPONSE=$(curl -sf "$HEALTH_URL" 2>/dev/null || echo '{}')
+            LIVE_SHA=$(echo "$RESPONSE" | jq -r '.sha // "unknown"')
+            echo "  Attempt $i/$MAX_ATTEMPTS — live SHA: $LIVE_SHA"
+            if [[ "$LIVE_SHA" == "$EXPECTED_SHA" ]] || [[ "$LIVE_SHA" == "$EXPECTED_SHORT"* ]]; then
+              echo "sha_match=true" >> "$GITHUB_OUTPUT"
+              echo "Deploy confirmed!"
+              exit 0
+            fi
+            sleep $SLEEP_SECONDS
+          done
+          echo "sha_match=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Timed out waiting for deploy (expected $EXPECTED_SHORT, got $LIVE_SHA)"
+          exit 1
+
+  smoke-tests:
+    needs: wait-for-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install requests pytest
+      - name: Run staging smoke tests
+        env:
+          STG_BASE_URL: ${{ env.STG_BASE_URL }}
+        run: pytest tests/staging/ -v --tb=short
+      - name: Create failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ github.event.workflow_run.head_sha || github.sha }}'.substring(0, 7);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Staging smoke test failed — ${sha}`,
+              body: `## Staging Smoke Test Failure\n\n**Commit:** ${sha}\n**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n**Time:** ${new Date().toISOString()}\n\nPlease investigate the staging environment.`,
+              labels: ['bug']
+            });
