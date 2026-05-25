@@ -26,7 +26,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 echo "==> Starting duckiehunt ($ENV) with $ENV_FILE..."
-docker compose --env-file "$ENV_FILE" up -d  --force-recreate
+export ENV_FILE
+docker compose --env-file "$ENV_FILE" up -d --force-recreate
 
 echo "==> Container status:"
 docker compose --env-file "$ENV_FILE" ps
