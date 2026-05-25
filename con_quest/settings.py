@@ -145,9 +145,7 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-if not Path("/.dockerenv").exists() and REDIS_URL.startswith("redis://redis:"):
-    REDIS_URL = os.getenv("REDIS_URL_NATIVE", "redis://127.0.0.1:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 
 CHANNEL_LAYERS = {
     "default": {
