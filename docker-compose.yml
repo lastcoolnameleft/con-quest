@@ -1,14 +1,12 @@
 services:
   conquest:
     container_name: ${COMPOSE_PROJECT_NAME:-conquest}
-    image: ${IMAGE:-ghcr.io/lastcoolnameleft/conquest:latest}
+    image: ${IMAGE:-ghcr.io/lastcoolnameleft/con-quest:latest}
     env_file:
       - ${ENV_FILE:-.env}
     volumes:
       - ${DATA_DIR:-.}/db:/app/db
       - ${DATA_DIR:-.}/uploads:/app/uploads
-    ports:
-      - "8000:8000"
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       - "conquest.env=${DEPLOY_ENV:-staging}"

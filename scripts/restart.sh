@@ -25,8 +25,11 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
 fi
 
-echo "==> Starting duckiehunt ($ENV) with $ENV_FILE..."
+echo "==> Stopping existing containers..."
 export ENV_FILE
+docker compose --env-file "$ENV_FILE" down --remove-orphans
+
+echo "==> Starting con-quest ($ENV) with $ENV_FILE..."
 docker compose --env-file "$ENV_FILE" up -d --force-recreate
 
 echo "==> Container status:"
