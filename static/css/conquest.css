@@ -47,6 +47,10 @@ body {
     padding: 3rem 1.5rem 2.5rem;
     text-align: center;
 }
+.cq-hero-logo {
+    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.3));
+    border-radius: 1rem;
+}
 .cq-hero h1 {
     font-weight: 800;
     font-size: 2.25rem;
