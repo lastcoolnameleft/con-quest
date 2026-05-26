@@ -37,5 +37,5 @@ class TestBasicConnectivity:
         assert resp.status_code == 200
 
     def test_login_page_reachable(self):
-        resp = requests.get(f"{BASE_URL}/accounts/login/", timeout=10)
+        resp = requests.get(f"{BASE_URL}/auth/login/", timeout=10)
         assert resp.status_code == 200
