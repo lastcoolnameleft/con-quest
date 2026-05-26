@@ -26,3 +26,11 @@ services:
       - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-conquest}-www-redirect.redirectregex.replacement=https://$${1}"
       - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-conquest}-www-redirect.redirectregex.permanent=true"
     restart: unless-stopped
+    networks:
+      - default
+      - valkey
+
+networks:
+  valkey:
+    external: true
+    name: valkey_default
