@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from apps.common.views import health
+from con_quest.views import handler400, handler403, handler404, handler500  # noqa: F401
 
 urlpatterns = [
     path("admin/", admin.site.urls),
