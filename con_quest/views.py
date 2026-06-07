@@ -17,10 +17,6 @@ def handler403(request, exception=None):
 
 
 def handler404(request, exception=None):
-    with sentry_sdk.push_scope() as scope:
-        scope.set_extra("path", request.path)
-        scope.set_extra("method", request.method)
-        sentry_sdk.capture_message(f"404 Not Found: {request.path}", level="info")
     return render(request, "errors/404.html", status=404)
 
 
