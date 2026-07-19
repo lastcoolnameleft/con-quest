@@ -407,6 +407,9 @@ html { scroll-behavior: smooth; }
     font-weight: 400;
     color: var(--cq-muted);
 }
+.cq-expandable-img {
+    cursor: zoom-in;
+}
 
 /* ── Quest action pills (consistent right-side indicators) ── */
 .cq-quest-action {

@@ -79,6 +79,16 @@
     <a href="{% url 'legal-terms' %}" class="me-3">Terms of Service</a>
     <a href="{% url 'legal-privacy' %}">Privacy Policy</a>
 </footer>
+<div class="modal fade" id="imageLightbox" tabindex="-1" aria-label="Expanded image" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-transparent border-0 shadow-none">
+            <div class="text-end mb-2">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal" aria-label="Close">✕</button>
+            </div>
+            <img id="lightbox-img" src="" alt="Expanded submission image" class="img-fluid rounded mx-auto d-block" style="max-height: 85vh;">
+        </div>
+    </div>
+</div>
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100" aria-live="polite" aria-atomic="true">
     <div id="connection-toast" class="toast" role="status">
         <div class="d-flex">
@@ -148,6 +158,38 @@ function initializeTooltips(root = document) {
     });
 }
 
+function initializeImageLightboxes(root = document) {
+    const modal = document.getElementById("imageLightbox");
+    const lightboxImg = document.getElementById("lightbox-img");
+    if (!window.bootstrap || !modal || !lightboxImg) {
+        return;
+    }
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+    root.querySelectorAll(".cq-expandable-img").forEach((img) => {
+        if (img.dataset.lightboxBound === "true") {
+            return;
+        }
+        img.dataset.lightboxBound = "true";
+        img.setAttribute("role", "button");
+        img.setAttribute("tabindex", "0");
+
+        const showLightbox = () => {
+            lightboxImg.src = img.dataset.fullSrc || img.src;
+            lightboxImg.alt = img.alt || "Expanded submission image";
+            bsModal.show();
+        };
+
+        img.addEventListener("click", showLightbox);
+        img.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                showLightbox();
+            }
+        });
+    });
+}
+
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("/static/service-worker.js").catch(() => {});
@@ -200,6 +242,7 @@ function disconnectHealthSocket() {
 
 window.addEventListener("DOMContentLoaded", () => {
     initializeTooltips();
+    initializeImageLightboxes();
     connectHealthSocket();
 });
 window.addEventListener("offline", () => setNavStatus("error"));
@@ -213,6 +256,7 @@ document.addEventListener("visibilitychange", () => {
 });
 document.body.addEventListener("htmx:responseError", () => setNavStatus("warn"));
 document.body.addEventListener("htmx:afterSwap", (event) => initializeTooltips(event.target));
+document.body.addEventListener("htmx:afterSwap", (event) => initializeImageLightboxes(event.target));
 </script>
 </body>
 </html>

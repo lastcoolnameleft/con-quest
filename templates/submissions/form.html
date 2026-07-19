@@ -152,37 +152,8 @@
 </script>
 {% endif %}
 
-<!-- Image lightbox modal -->
-<div class="modal fade" id="imageLightbox" tabindex="-1" aria-label="Expanded image" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content bg-transparent border-0 shadow-none">
-            <div class="text-end mb-2">
-                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal" aria-label="Close">✕</button>
-            </div>
-            <img id="lightbox-img" src="" alt="Expanded submission image" class="img-fluid rounded mx-auto d-block" style="max-height: 85vh;">
-        </div>
-    </div>
-</div>
-
 <script>
 (() => {
-    // Lightbox for existing images
-    const lightboxImg = document.getElementById("lightbox-img");
-    const modal = document.getElementById("imageLightbox");
-    if (lightboxImg && modal) {
-        const bsModal = new bootstrap.Modal(modal);
-        document.querySelectorAll(".cq-expandable-img").forEach(img => {
-            img.style.cursor = "zoom-in";
-            img.addEventListener("click", () => {
-                lightboxImg.src = img.dataset.fullSrc || img.src;
-                bsModal.show();
-            });
-            img.addEventListener("keydown", (e) => {
-                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); img.click(); }
-            });
-        });
-    }
-
     // Mobile photo accumulation: keep files across multiple captures
     const fileInput = document.getElementById("id_media_files");
     if (!fileInput) return;

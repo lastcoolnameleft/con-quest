@@ -67,7 +67,7 @@
                         <div class="col-12 col-md-6">
                             {% with media_url=media.signed_url|default:media.blob_path_or_url %}
                             {% if media.media_type == "image" %}
-                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                            <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border cq-expandable-img" data-full-src="{{ media_url }}">
                             {% elif media.media_type == "video" %}
                             <video controls preload="metadata" class="w-100 rounded border">
                                 <source src="{{ media_url }}" type="{{ media.mime_type }}">
@@ -134,7 +134,7 @@
                     <div class="col-12 col-md-6">
                         {% with media_url=media.signed_url|default:media.blob_path_or_url %}
                         {% if media.media_type == "image" %}
-                        <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border">
+                        <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border cq-expandable-img" data-full-src="{{ media_url }}">
                         {% elif media.media_type == "video" %}
                         <video controls preload="metadata" class="w-100 rounded border">
                             <source src="{{ media_url }}" type="{{ media.mime_type }}">

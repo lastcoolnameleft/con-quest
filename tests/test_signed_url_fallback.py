@@ -77,3 +77,5 @@ class SignedUrlFallbackTests(TestCase):
         response = client.get(reverse("season-scoring-queue", kwargs={"slug": season.slug}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, blob_url)
+        self.assertContains(response, "cq-expandable-img")
+        self.assertContains(response, 'id="imageLightbox"')
