@@ -8,12 +8,15 @@ from apps.quests.models import SeasonQuest
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
 from apps.submissions.models import Submission
+from apps.submissions.models import SubmissionMedia
 
 
 class ControlCenterTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.season = Season.objects.create(title="Control Season", slug="control-season")
+        self.season = Season.objects.create(
+            title="Control Season", slug="control-season"
+        )
         self.host = SeasonParticipant.objects.create(
             season=self.season,
             handle="host",
@@ -66,7 +69,9 @@ class ControlCenterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Pending scores needing review:")
         self.assertContains(response, "1")
-        self.assertContains(response, reverse("season-scoring-queue", kwargs={"slug": self.season.slug}))
+        self.assertContains(
+            response, reverse("season-scoring-queue", kwargs={"slug": self.season.slug})
+        )
 
     def test_host_can_create_edit_delete_season(self):
         self._bind_host_session()
@@ -103,7 +108,9 @@ class ControlCenterTests(TestCase):
         self.assertEqual(created.title, "Updated Season")
         self.assertEqual(created.status, Season.Status.ACTIVE)
 
-        delete_response = self.client.post(reverse("control-season-delete", kwargs={"slug": created.slug}))
+        delete_response = self.client.post(
+            reverse("control-season-delete", kwargs={"slug": created.slug})
+        )
         self.assertEqual(delete_response.status_code, 302)
         self.assertFalse(Season.objects.filter(slug="new-season").exists())
 
@@ -201,7 +208,9 @@ class ControlCenterTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        created = SeasonQuest.objects.filter(season=self.season, title_override="Friday Opener").first()
+        created = SeasonQuest.objects.filter(
+            season=self.season, title_override="Friday Opener"
+        ).first()
         self.assertIsNotNone(created)
         self.assertEqual(created.late_grace_seconds, 0)
 
@@ -227,5 +236,59 @@ class ControlCenterTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "A quest with this title already exists in this season.")
-        self.assertEqual(SeasonQuest.objects.filter(season=self.season).count(), existing_count)
+        self.assertContains(
+            response, "A quest with this title already exists in this season."
+        )
+        self.assertEqual(
+            SeasonQuest.objects.filter(season=self.season).count(), existing_count
+        )
+
+    def test_host_can_view_control_season_quest_details(self):
+        self._bind_host_session()
+        player = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        assignment = QuestAssignment.objects.create(
+            season_quest=self.season_quest,
+            participant=player,
+            status=QuestAssignment.Status.SUBMITTED,
+        )
+        submission = Submission.objects.create(
+            quest_assignment=assignment,
+            text_response="This is my evidence from the venue floor.",
+            score=4,
+        )
+        SubmissionMedia.objects.create(
+            submission=submission,
+            blob_path_or_url="https://example.com/media.jpg",
+            media_type=SubmissionMedia.MediaType.IMAGE,
+            mime_type="image/jpeg",
+            file_size_bytes=1024,
+        )
+
+        response = self.client.get(
+            reverse(
+                "control-season-quest-detail", kwargs={"quest_id": self.season_quest.id}
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.season_quest.resolved_title)
+        self.assertContains(response, self.season_quest.resolved_description)
+        self.assertContains(response, "player")
+        self.assertContains(response, "This is my evidence from the venue floor.")
+        self.assertContains(response, "1 media file")
+        self.assertContains(response, "4")
+
+    def test_non_host_cannot_view_control_season_quest_details(self):
+        response = self.client.get(
+            reverse(
+                "control-season-quest-detail", kwargs={"quest_id": self.season_quest.id}
+            )
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("season-index"))

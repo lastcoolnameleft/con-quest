@@ -42,14 +42,18 @@ logger = logging.getLogger(__name__)
 
 
 def submit_open_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     participant = get_session_participant(request, season_quest.season)
     if not participant:
         messages.error(request, "Join the season before submitting.")
         return redirect("season-detail", slug=season_quest.season.slug)
 
     if season_quest.quest_mode != SeasonQuest.QuestMode.OPEN:
-        messages.error(request, "Use the scheduled quest enrollment flow for this quest.")
+        messages.error(
+            request, "Use the scheduled quest enrollment flow for this quest."
+        )
         return redirect("season-detail", slug=season_quest.season.slug)
 
     if season_quest.status != SeasonQuest.Status.ACTIVE:
@@ -64,7 +68,9 @@ def submit_open_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
         window_seconds=window_seconds,
     )
     if not allowed:
-        messages.error(request, f"Too many submit attempts. Retry in about {retry_after} seconds.")
+        messages.error(
+            request, f"Too many submit attempts. Retry in about {retry_after} seconds."
+        )
         response = redirect("season-detail", slug=season_quest.season.slug)
         return add_rate_limit_headers(
             response,
@@ -131,7 +137,10 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
             submit_action = "submit"
 
         if submission and not can_edit_submission:
-            messages.error(request, "This submission has already been scored and can no longer be edited.")
+            messages.error(
+                request,
+                "This submission has already been scored and can no longer be edited.",
+            )
             return redirect("assignment-submit", assignment_id=assignment.id)
 
         limit = 10
@@ -142,7 +151,10 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
             window_seconds=window_seconds,
         )
         if not allowed:
-            messages.error(request, f"Too many submission attempts. Retry in about {retry_after} seconds.")
+            messages.error(
+                request,
+                f"Too many submission attempts. Retry in about {retry_after} seconds.",
+            )
             response = redirect("season-detail", slug=season.slug)
             return add_rate_limit_headers(
                 response,
@@ -161,9 +173,15 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
 
             if not media_files and not text_response and existing_media_count == 0:
                 if submit_action == "draft":
-                    messages.error(request, "Add text or at least one media file before saving draft.")
+                    messages.error(
+                        request,
+                        "Add text or at least one media file before saving draft.",
+                    )
                 else:
-                    messages.error(request, "Add text or at least one media file before submitting.")
+                    messages.error(
+                        request,
+                        "Add text or at least one media file before submitting.",
+                    )
                 return render(
                     request,
                     "submissions/form.html",
@@ -204,13 +222,19 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
             try:
                 next_sort_order = submission.media_items.count()
                 for index, media_file in enumerate(media_files):
-                    media_type = "video" if media_file.content_type in ALLOWED_VIDEO_MIME_TYPES else "image"
+                    media_type = (
+                        "video"
+                        if media_file.content_type in ALLOWED_VIDEO_MIME_TYPES
+                        else "image"
+                    )
                     duration_seconds = None
                     if media_type == SubmissionMedia.MediaType.VIDEO:
                         duration_seconds = detect_video_duration_seconds(media_file)
 
                     # Extract EXIF before stripping so we retain it in the DB.
-                    exif_data = extract_exif_data(media_file) if media_type == "image" else None
+                    exif_data = (
+                        extract_exif_data(media_file) if media_type == "image" else None
+                    )
 
                     blob_url = upload_submission_media(
                         season_slug=assignment.season_quest.season.slug,
@@ -257,7 +281,10 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
                         rollback_fields.append("is_draft")
                     if rollback_fields:
                         submission.save(update_fields=rollback_fields)
-                logger.exception("Submission upload failed due to storage configuration for assignment %s.", assignment.id)
+                logger.exception(
+                    "Submission upload failed due to storage configuration for assignment %s.",
+                    assignment.id,
+                )
                 messages.error(request, "There was an error uploading the media.")
                 return render(
                     request,
@@ -282,7 +309,10 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
                         rollback_fields.append("is_draft")
                     if rollback_fields:
                         submission.save(update_fields=rollback_fields)
-                logger.exception("Submission upload failed unexpectedly for assignment %s.", assignment.id)
+                logger.exception(
+                    "Submission upload failed unexpectedly for assignment %s.",
+                    assignment.id,
+                )
                 messages.error(request, "Upload failed unexpectedly. Please try again.")
                 return render(
                     request,
@@ -298,22 +328,24 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
             if submit_action == "submit":
                 assignment.status = QuestAssignment.Status.SUBMITTED
                 assignment.save(update_fields=["status"])
+                broadcast_season_event(
+                    season_id=assignment.season_quest.season_id,
+                    payload={
+                        "event": "submission_created",
+                        "assignment_id": assignment.id,
+                        "season_quest_id": assignment.season_quest_id,
+                        "participant_id": assignment.participant_id,
+                        "participant_handle": assignment.participant.handle,
+                        "quest_title": assignment.season_quest.resolved_title,
+                        "scoring_url": f"/seasons/{season.slug}/scoring/",
+                    },
+                )
                 if created_submission:
-                    broadcast_season_event(
-                        season_id=assignment.season_quest.season_id,
-                        payload={
-                            "event": "submission_created",
-                            "assignment_id": assignment.id,
-                            "season_quest_id": assignment.season_quest_id,
-                            "participant_id": assignment.participant_id,
-                            "participant_handle": assignment.participant.handle,
-                            "quest_title": assignment.season_quest.resolved_title,
-                            "scoring_url": f"/seasons/{season.slug}/scoring/",
-                        },
-                    )
                     messages.success(request, "Submission received.")
                 else:
-                    messages.success(request, "Submission updated and submitted for scoring.")
+                    messages.success(
+                        request, "Submission updated and submitted for scoring."
+                    )
             else:
                 assignment.status = QuestAssignment.Status.PENDING
                 assignment.save(update_fields=["status"])
@@ -326,14 +358,21 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
                 remaining=limit - current_count,
             )
     else:
-        form = SubmissionForm(initial={"text_response": submission.text_response} if submission else None)
+        form = SubmissionForm(
+            initial={"text_response": submission.text_response} if submission else None
+        )
 
     if submission:
         for media in submission.media_items.all():
             media.signed_url = signed_read_url(media.blob_path_or_url)
 
     season_quest = assignment.season_quest
-    ends_at_iso = season_quest.ends_at.isoformat() if season_quest.ends_at and season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED else None
+    ends_at_iso = (
+        season_quest.ends_at.isoformat()
+        if season_quest.ends_at
+        and season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED
+        else None
+    )
 
     return render(
         request,
@@ -351,7 +390,9 @@ def submit_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
 
 def view_assignment(request: HttpRequest, assignment_id: int) -> HttpResponse:
     assignment = get_object_or_404(
-        QuestAssignment.objects.select_related("season_quest__season", "season_quest__quest", "participant"),
+        QuestAssignment.objects.select_related(
+            "season_quest__season", "season_quest__quest", "participant"
+        ),
         id=assignment_id,
     )
     season = assignment.season_quest.season
@@ -400,17 +441,26 @@ def _render_scheduled_quest(
     now = timezone.now()
 
     # Determine the quest phase
-    if season_quest.status in {SeasonQuest.Status.COMPLETE, SeasonQuest.Status.ARCHIVED}:
+    if season_quest.status in {
+        SeasonQuest.Status.COMPLETE,
+        SeasonQuest.Status.ARCHIVED,
+    }:
         phase = "expired"
     elif season_quest.ends_at and now > season_quest.ends_at:
         if season_quest.allow_late_submissions:
-            grace_deadline = season_quest.ends_at + timedelta(seconds=season_quest.late_grace_seconds)
+            grace_deadline = season_quest.ends_at + timedelta(
+                seconds=season_quest.late_grace_seconds
+            )
             phase = "active" if now <= grace_deadline else "expired"
         else:
             phase = "expired"
     elif season_quest.status == SeasonQuest.Status.ACTIVE and season_quest.started_at:
         phase = "active"
-    elif season_quest.opens_at and now >= season_quest.opens_at and season_quest.status == SeasonQuest.Status.ACTIVE:
+    elif (
+        season_quest.opens_at
+        and now >= season_quest.opens_at
+        and season_quest.status == SeasonQuest.Status.ACTIVE
+    ):
         phase = "active"
     else:
         phase = "waiting"
@@ -424,7 +474,9 @@ def _render_scheduled_quest(
     can_edit_submission = False
     if phase == "active":
         can_edit_submission = assignment.status != QuestAssignment.Status.SCORED
-        form = SubmissionForm(initial={"text_response": submission.text_response if submission else ""})
+        form = SubmissionForm(
+            initial={"text_response": submission.text_response if submission else ""}
+        )
 
     # Fetch signed URLs for media on existing submissions
     if submission:
@@ -456,8 +508,12 @@ def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
         return redirect("season-detail", slug=slug)
 
     submissions = (
-        Submission.objects.filter(quest_assignment__season_quest__season=season, is_draft=False)
-        .select_related("quest_assignment__participant", "quest_assignment__season_quest")
+        Submission.objects.filter(
+            quest_assignment__season_quest__season=season, is_draft=False
+        )
+        .select_related(
+            "quest_assignment__participant", "quest_assignment__season_quest"
+        )
         .prefetch_related("media_items")
         .order_by("score", "-submitted_at")
     )
@@ -465,12 +521,16 @@ def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
     submission_ids = [submission.id for submission in submissions]
     score_logs_by_submission: dict[int, list[AuditLog]] = {}
     if submission_ids:
-        score_update_logs = AuditLog.objects.filter(
-            season=season,
-            action_type="submission.score.updated",
-            target_type="Submission",
-            target_id__in=[str(submission_id) for submission_id in submission_ids],
-        ).select_related("actor_participant").order_by("-created_at", "-id")
+        score_update_logs = (
+            AuditLog.objects.filter(
+                season=season,
+                action_type="submission.score.updated",
+                target_type="Submission",
+                target_id__in=[str(submission_id) for submission_id in submission_ids],
+            )
+            .select_related("actor_participant")
+            .order_by("-created_at", "-id")
+        )
         for log in score_update_logs:
             try:
                 submission_id = int(log.target_id)
@@ -497,7 +557,9 @@ def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
             new_values = log.new_value_json or {}
             score_value = new_values.get("score")
             judge_note = (new_values.get("judge_note") or "").strip()
-            actor_handle = log.actor_participant.handle if log.actor_participant else "Staff"
+            actor_handle = (
+                log.actor_participant.handle if log.actor_participant else "Staff"
+            )
             detail_parts: list[str] = [f"Updated by {actor_handle}."]
             if score_value is not None:
                 detail_parts.append(f"Score set to {score_value}.")
@@ -515,8 +577,12 @@ def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
         submission.timeline_events = timeline
         submission.timeline_event_count = len(timeline)
 
-    pending_submissions = [submission for submission in submissions if submission.score is None]
-    scored_submissions = [submission for submission in submissions if submission.score is not None]
+    pending_submissions = [
+        submission for submission in submissions if submission.score is None
+    ]
+    scored_submissions = [
+        submission for submission in submissions if submission.score is not None
+    ]
 
     return render(
         request,
@@ -532,7 +598,9 @@ def scoring_queue(request: HttpRequest, slug: str) -> HttpResponse:
 @require_POST
 def score_submission(request: HttpRequest, submission_id: int) -> HttpResponse:
     submission = get_object_or_404(
-        Submission.objects.select_related("quest_assignment__season_quest__season", "quest_assignment"),
+        Submission.objects.select_related(
+            "quest_assignment__season_quest__season", "quest_assignment"
+        ),
         id=submission_id,
     )
     season = submission.quest_assignment.season_quest.season
@@ -550,7 +618,9 @@ def score_submission(request: HttpRequest, submission_id: int) -> HttpResponse:
         window_seconds=window_seconds,
     )
     if not allowed:
-        messages.error(request, f"Too many scoring actions. Retry in about {retry_after} seconds.")
+        messages.error(
+            request, f"Too many scoring actions. Retry in about {retry_after} seconds."
+        )
         response = redirect("season-scoring-queue", slug=season.slug)
         return add_rate_limit_headers(
             response,
@@ -577,7 +647,9 @@ def score_submission(request: HttpRequest, submission_id: int) -> HttpResponse:
     submission.judge_note = judge_note
     submission.scored_at = timezone.now()
     submission.scored_by_participant = scorer
-    submission.save(update_fields=["score", "judge_note", "scored_at", "scored_by_participant"])
+    submission.save(
+        update_fields=["score", "judge_note", "scored_at", "scored_by_participant"]
+    )
 
     assignment = submission.quest_assignment
     assignment.status = QuestAssignment.Status.SCORED
@@ -645,7 +717,9 @@ def _validate_media_files(media_files) -> list[str]:
                 errors.append(f"{media_file.name}: could not determine video duration.")
                 continue
             if duration > MAX_VIDEO_DURATION_SECONDS:
-                errors.append(f"{media_file.name}: video exceeds 15 second duration limit.")
+                errors.append(
+                    f"{media_file.name}: video exceeds 15 second duration limit."
+                )
                 continue
         else:
             errors.append(f"{media_file.name}: unsupported file type.")
@@ -653,7 +727,9 @@ def _validate_media_files(media_files) -> list[str]:
     return errors
 
 
-def _resolve_scorer_participant(request: HttpRequest, season) -> SeasonParticipant | None:
+def _resolve_scorer_participant(
+    request: HttpRequest, season
+) -> SeasonParticipant | None:
     participant = get_session_participant(request, season)
     if participant:
         return participant
@@ -673,12 +749,17 @@ def _resolve_scorer_participant(request: HttpRequest, season) -> SeasonParticipa
     )
 
 
-def _can_score(request: HttpRequest, season, participant: SeasonParticipant | None) -> bool:
+def _can_score(
+    request: HttpRequest, season, participant: SeasonParticipant | None
+) -> bool:
     if can_manage_season(request, season):
         return True
     if not participant:
         return False
-    return participant.role in {SeasonParticipant.Role.HOST, SeasonParticipant.Role.ADMIN}
+    return participant.role in {
+        SeasonParticipant.Role.HOST,
+        SeasonParticipant.Role.ADMIN,
+    }
 
 
 def _submission_timing_error(assignment: QuestAssignment) -> str | None:
@@ -692,12 +773,17 @@ def _submission_timing_error(assignment: QuestAssignment) -> str | None:
 
     if season_quest.ends_at and now > season_quest.ends_at:
         if season_quest.allow_late_submissions:
-            grace_deadline = season_quest.ends_at + timedelta(seconds=season_quest.late_grace_seconds)
+            grace_deadline = season_quest.ends_at + timedelta(
+                seconds=season_quest.late_grace_seconds
+            )
             if now <= grace_deadline:
                 return None
         return "Submission window has closed."
 
-    if season_quest.status in {season_quest.Status.COMPLETE, season_quest.Status.ARCHIVED}:
+    if season_quest.status in {
+        season_quest.Status.COMPLETE,
+        season_quest.Status.ARCHIVED,
+    }:
         return "Submission window has closed."
 
     return None

@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -25,7 +25,9 @@ def _activate_quest_window(season_quest: SeasonQuest) -> None:
     now = timezone.now()
     fairness_buffer_seconds = 2
     season_quest.started_at = now + timedelta(seconds=fairness_buffer_seconds)
-    season_quest.ends_at = season_quest.started_at + timedelta(seconds=season_quest.duration_seconds)
+    season_quest.ends_at = season_quest.started_at + timedelta(
+        seconds=season_quest.duration_seconds
+    )
     season_quest.status = SeasonQuest.Status.ACTIVE
     season_quest.save(update_fields=["started_at", "ends_at", "status", "updated_at"])
 
@@ -64,14 +66,21 @@ def season_quest_create(request: HttpRequest, slug: str) -> HttpResponse:
             season_quest.save()
             messages.success(request, "Season quest created.")
             return redirect("control-dashboard")
-        form.add_error(None, "Could not save quest. Fix the highlighted fields and try again.")
+        form.add_error(
+            None, "Could not save quest. Fix the highlighted fields and try again."
+        )
     else:
         form = SeasonQuestForm(season=season)
 
     return render(
         request,
         "quests/season_quest_form.html",
-        {"season": season, "form": form, "is_edit": False, "quest_defaults": quest_defaults},
+        {
+            "season": season,
+            "form": form,
+            "is_edit": False,
+            "quest_defaults": quest_defaults,
+        },
     )
 
 
@@ -118,7 +127,9 @@ def quest_delete(request: HttpRequest, quest_id: int) -> HttpResponse:
     quest = get_object_or_404(Quest, id=quest_id)
 
     if quest.season_quests.exists():
-        messages.error(request, "Cannot delete a quest that is tied to one or more seasons.")
+        messages.error(
+            request, "Cannot delete a quest that is tied to one or more seasons."
+        )
         return redirect("control-dashboard")
 
     if request.method == "POST":
@@ -130,7 +141,9 @@ def quest_delete(request: HttpRequest, quest_id: int) -> HttpResponse:
 
 
 def season_quest_edit(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
         return redirect("season-index")
@@ -141,24 +154,35 @@ def season_quest_edit(request: HttpRequest, quest_id: int) -> HttpResponse:
     }
 
     if request.method == "POST":
-        form = SeasonQuestForm(request.POST, instance=season_quest, season=season_quest.season)
+        form = SeasonQuestForm(
+            request.POST, instance=season_quest, season=season_quest.season
+        )
         if form.is_valid():
             form.save()
             messages.success(request, "Season quest updated.")
             return redirect("control-dashboard")
-        form.add_error(None, "Could not save quest. Fix the highlighted fields and try again.")
+        form.add_error(
+            None, "Could not save quest. Fix the highlighted fields and try again."
+        )
     else:
         form = SeasonQuestForm(instance=season_quest, season=season_quest.season)
 
     return render(
         request,
         "quests/season_quest_form.html",
-        {"season": season_quest.season, "form": form, "is_edit": True, "quest_defaults": quest_defaults},
+        {
+            "season": season_quest.season,
+            "form": form,
+            "is_edit": True,
+            "quest_defaults": quest_defaults,
+        },
     )
 
 
 def season_quest_delete(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
         return redirect("season-index")
@@ -168,12 +192,18 @@ def season_quest_delete(request: HttpRequest, quest_id: int) -> HttpResponse:
         messages.success(request, "Season quest deleted.")
         return redirect("control-dashboard")
 
-    return render(request, "control/season_quest_confirm_delete.html", {"season_quest": season_quest})
+    return render(
+        request,
+        "control/season_quest_confirm_delete.html",
+        {"season_quest": season_quest},
+    )
 
 
 @require_POST
 def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     participant = get_session_participant(request, season_quest.season)
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
@@ -189,7 +219,9 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
         window_seconds=window_seconds,
     )
     if not allowed:
-        messages.error(request, f"Too many start attempts. Retry in about {retry_after} seconds.")
+        messages.error(
+            request, f"Too many start attempts. Retry in about {retry_after} seconds."
+        )
         response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
@@ -219,8 +251,13 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
             remaining=limit - current_count,
         )
 
-    if season_quest.status in {SeasonQuest.Status.COMPLETE, SeasonQuest.Status.ARCHIVED}:
-        messages.error(request, "Closed or archived scheduled quests cannot be started.")
+    if season_quest.status in {
+        SeasonQuest.Status.COMPLETE,
+        SeasonQuest.Status.ARCHIVED,
+    }:
+        messages.error(
+            request, "Closed or archived scheduled quests cannot be started."
+        )
         response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
@@ -230,7 +267,9 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
         )
 
     if season_quest.status != SeasonQuest.Status.PENDING:
-        messages.error(request, "Scheduled quests must be published before they can be started.")
+        messages.error(
+            request, "Scheduled quests must be published before they can be started."
+        )
         response = redirect("control-dashboard")
         return add_rate_limit_headers(
             response,
@@ -241,7 +280,9 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
     _activate_quest_window(season_quest)
 
-    messages.success(request, f"Scheduled quest '{season_quest.resolved_title}' started.")
+    messages.success(
+        request, f"Scheduled quest '{season_quest.resolved_title}' started."
+    )
     response = redirect("control-dashboard")
     return add_rate_limit_headers(
         response,
@@ -253,7 +294,9 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 
 @require_POST
 def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     if not can_manage_season(request, season_quest.season):
         messages.error(request, "Host or admin access required.")
         return redirect("control-dashboard")
@@ -311,7 +354,9 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
 
 @require_POST
 def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
-    season_quest = get_object_or_404(SeasonQuest.objects.select_related("season"), id=quest_id)
+    season_quest = get_object_or_404(
+        SeasonQuest.objects.select_related("season"), id=quest_id
+    )
     participant = get_session_participant(request, season_quest.season)
     if not participant:
         messages.error(request, "Join the season before enrolling.")
@@ -325,7 +370,9 @@ def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
         window_seconds=window_seconds,
     )
     if not allowed:
-        messages.error(request, f"Too many enroll attempts. Retry in about {retry_after} seconds.")
+        messages.error(
+            request, f"Too many enroll attempts. Retry in about {retry_after} seconds."
+        )
         response = redirect("season-detail", slug=season_quest.season.slug)
         return add_rate_limit_headers(
             response,
@@ -338,7 +385,9 @@ def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
     if season_quest.quest_mode != SeasonQuest.QuestMode.SCHEDULED:
         messages.error(request, "This quest is not scheduled.")
         return redirect("season-detail", slug=season_quest.season.slug)
-    expected_code = season_quest.rsvp_code.strip().upper() if season_quest.rsvp_code else ""
+    expected_code = (
+        season_quest.rsvp_code.strip().upper() if season_quest.rsvp_code else ""
+    )
     if expected_code:
         submitted_code = (request.POST.get("rsvp_code") or "").strip().upper()
         if submitted_code != expected_code:
@@ -350,7 +399,9 @@ def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
         participant=participant,
         defaults={"assignment_source": QuestAssignment.Source.RSVP_CODE},
     )
-    messages.success(request, f"Enrolled in scheduled quest '{season_quest.resolved_title}'.")
+    messages.success(
+        request, f"Enrolled in scheduled quest '{season_quest.resolved_title}'."
+    )
     response = redirect("assignment-view", assignment_id=assignment.pk)
     return add_rate_limit_headers(
         response,
@@ -363,7 +414,10 @@ def enroll_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
 def _can_manage_quests(participant: SeasonParticipant | None) -> bool:
     if not participant:
         return False
-    return participant.role in {SeasonParticipant.Role.HOST, SeasonParticipant.Role.ADMIN}
+    return participant.role in {
+        SeasonParticipant.Role.HOST,
+        SeasonParticipant.Role.ADMIN,
+    }
 
 
 def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResponse:
@@ -378,19 +432,32 @@ def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResp
     assignments = (
         QuestAssignment.objects.filter(season_quest=season_quest)
         .select_related("participant", "submission")
+        .prefetch_related("submission__media_items")
         .order_by("-submission__score", "participant__handle")
     )
 
     submissions_data = []
     for assignment in assignments:
         submission = getattr(assignment, "submission", None)
-        submissions_data.append({
-            "assignment": assignment,
-            "participant": assignment.participant,
-            "submission": submission,
-            "score": submission.score if submission else None,
-            "status": assignment.get_status_display(),
-        })
+        response_preview = ""
+        media_count = 0
+        if submission:
+            response_preview = submission.text_response.strip()
+            if len(response_preview) > 120:
+                response_preview = f"{response_preview[:117]}..."
+            media_count = submission.media_items.count()
+
+        submissions_data.append(
+            {
+                "assignment": assignment,
+                "participant": assignment.participant,
+                "submission": submission,
+                "score": submission.score if submission else None,
+                "status": assignment.get_status_display(),
+                "response_preview": response_preview,
+                "media_count": media_count,
+            }
+        )
 
     return render(
         request,
@@ -407,8 +474,14 @@ def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResp
 def season_quest_status_check(request: HttpRequest, quest_id: int) -> JsonResponse:
     """Lightweight polling endpoint returning the current quest status."""
     season_quest = get_object_or_404(SeasonQuest, id=quest_id)
-    return JsonResponse({
-        "status": season_quest.status,
-        "started_at": season_quest.started_at.isoformat() if season_quest.started_at else None,
-        "ends_at": season_quest.ends_at.isoformat() if season_quest.ends_at else None,
-    })
+    return JsonResponse(
+        {
+            "status": season_quest.status,
+            "started_at": season_quest.started_at.isoformat()
+            if season_quest.started_at
+            else None,
+            "ends_at": season_quest.ends_at.isoformat()
+            if season_quest.ends_at
+            else None,
+        }
+    )
