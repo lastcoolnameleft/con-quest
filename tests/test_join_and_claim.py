@@ -127,6 +127,28 @@ class JoinAndClaimTests(TestCase):
         self.assertContains(response, "1 quest ready")
         self.assertContains(response, "1 coming soon")
 
+    def test_archived_season_hidden_on_index_but_still_accessible_directly(self):
+        participant = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="archived-player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        self.season.status = Season.Status.ARCHIVED
+        self.season.save(update_fields=["status", "updated_at"])
+
+        session = self.client.session
+        session[f"season_participant_{self.season.id}"] = participant.id
+        session.save()
+
+        index_response = self.client.get(reverse("season-index"))
+        self.assertEqual(index_response.status_code, 200)
+        self.assertNotContains(index_response, self.season.title)
+
+        detail_response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, self.season.title)
+
     def test_claimed_account_can_open_assignment_submit_without_session_binding(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(username="claimedplayer", password="p@ssword123")

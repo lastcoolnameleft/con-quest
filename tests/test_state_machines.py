@@ -321,9 +321,9 @@ class TestQuestAssignmentStatusMachine:
 
 @pytest.mark.django_db
 class TestSeasonStatus:
-    """Season has no transition helper — status is set directly."""
+    """Season status transition helper and model-level states."""
 
-    @pytest.mark.parametrize("status", ["draft", "active", "closed"])
+    @pytest.mark.parametrize("status", ["draft", "active", "closed", "archived"])
     def test_create_with_each_status(self, status):
         s = SeasonFactory(status=status)
         assert s.status == status
@@ -339,6 +339,33 @@ class TestSeasonStatus:
         s.save()
         s.refresh_from_db()
         assert s.status == Season.Status.CLOSED
+
+    @pytest.mark.parametrize(
+        ("current_status", "expected"),
+        [
+            (Season.Status.DRAFT, {Season.Status.ACTIVE, Season.Status.ARCHIVED}),
+            (Season.Status.ACTIVE, {Season.Status.CLOSED, Season.Status.ARCHIVED}),
+            (Season.Status.CLOSED, {Season.Status.ARCHIVED}),
+            (Season.Status.ARCHIVED, set()),
+        ],
+    )
+    def test_allowed_next_statuses(self, current_status, expected):
+        season = SeasonFactory(status=current_status)
+        assert season.allowed_next_statuses() == expected
+
+    @pytest.mark.parametrize(
+        ("current_status", "target_status", "allowed"),
+        [
+            (Season.Status.DRAFT, Season.Status.ARCHIVED, True),
+            (Season.Status.ACTIVE, Season.Status.ARCHIVED, True),
+            (Season.Status.CLOSED, Season.Status.ARCHIVED, True),
+            (Season.Status.ARCHIVED, Season.Status.ACTIVE, False),
+            (Season.Status.DRAFT, Season.Status.CLOSED, False),
+        ],
+    )
+    def test_can_transition_to(self, current_status, target_status, allowed):
+        season = SeasonFactory(status=current_status)
+        assert season.can_transition_to(target_status) is allowed
 
 
 # ===========================================================================

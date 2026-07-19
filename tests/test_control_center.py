@@ -107,6 +107,27 @@ class ControlCenterTests(TestCase):
         self.assertEqual(delete_response.status_code, 302)
         self.assertFalse(Season.objects.filter(slug="new-season").exists())
 
+    def test_host_can_archive_draft_season_from_control_center(self):
+        self._bind_host_session()
+
+        response = self.client.post(
+            reverse("control-season-archive", kwargs={"slug": self.season.slug})
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.season.refresh_from_db()
+        self.assertEqual(self.season.status, Season.Status.ARCHIVED)
+
+    def test_non_host_cannot_archive_season(self):
+        response = self.client.post(
+            reverse("control-season-archive", kwargs={"slug": self.season.slug})
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("season-index"))
+        self.season.refresh_from_db()
+        self.assertEqual(self.season.status, Season.Status.DRAFT)
+
     def test_host_can_edit_delete_quest_and_season_quest(self):
         self._bind_host_session()
 

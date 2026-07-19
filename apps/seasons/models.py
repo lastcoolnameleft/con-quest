@@ -26,7 +26,7 @@ class Season(models.Model):
 
     def allowed_next_statuses(self) -> set[str]:
         transitions = {
-            self.Status.DRAFT: {self.Status.ACTIVE},
+            self.Status.DRAFT: {self.Status.ACTIVE, self.Status.ARCHIVED},
             self.Status.ACTIVE: {self.Status.CLOSED, self.Status.ARCHIVED},
             self.Status.CLOSED: {self.Status.ARCHIVED},
             self.Status.ARCHIVED: set(),
