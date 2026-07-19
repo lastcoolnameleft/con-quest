@@ -1,8 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.realtime.presence import register_quest_viewer_connection
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
 from apps.quests.models import Quest
@@ -12,6 +14,7 @@ from apps.quests.models import QuestAssignment
 
 class JoinAndClaimTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.season = Season.objects.create(
             title="DragonCon 2026",
@@ -246,3 +249,38 @@ class JoinAndClaimTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "notif-player")
+
+    def test_season_detail_shows_online_viewer_count_for_quest(self):
+        participant = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="viewer-player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        quest_template = Quest.objects.create(title="Live Quest", description="Desc")
+        season_quest = SeasonQuest.objects.create(
+            season=self.season,
+            quest=quest_template,
+            title_override="Live Assignment",
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+            status=SeasonQuest.Status.ACTIVE,
+        )
+        QuestAssignment.objects.create(
+            season_quest=season_quest,
+            participant=participant,
+            status=QuestAssignment.Status.PENDING,
+        )
+        register_quest_viewer_connection(
+            season_id=self.season.id,
+            quest_id=season_quest.id,
+            participant_id=participant.id,
+            connection_id="presence-test-1",
+        )
+
+        session = self.client.session
+        session[f"season_participant_{self.season.id}"] = participant.id
+        session.save()
+        response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "online now")

@@ -126,6 +126,20 @@
         setTimeout(() => toast.remove(), 8000);
     }
 
+    function updateQuestPresence(questId, activeViewerCount) {
+        const badge = document.querySelector(`.cq-active-viewers[data-quest-id="${questId}"]`);
+        if (!badge) return;
+        const countEl = badge.querySelector(".cq-active-viewers-count");
+        if (countEl) {
+            countEl.textContent = String(activeViewerCount);
+        }
+        badge.setAttribute(
+            "title",
+            `${activeViewerCount} participant${activeViewerCount === 1 ? "" : "s"} online now`,
+        );
+        badge.classList.toggle("d-none", activeViewerCount <= 0);
+    }
+
     async function pollFallback() {
         try {
             const response = await fetch(seasonStateUrl, { headers: { "Accept": "application/json" } });
@@ -162,6 +176,8 @@
                 if (payload.event === "quest_started" || payload.event === "quest_activated") {
                     showEventToast(`🎯 Quest "${payload.title || "New Quest"}" is now live!`, payload.quest_url);
                     setTimeout(() => window.location.reload(), 1500);
+                } else if (payload.event === "quest_presence_updated") {
+                    updateQuestPresence(payload.season_quest_id, payload.active_viewer_count || 0);
                 } else if (payload.event === "submission_scored") {
                     showEventToast(`🏆 ${payload.participant_handle || "A player"} scored ${payload.score}/5 on "${payload.quest_title || "a quest"}"`, payload.leaderboard_url);
                     setTimeout(() => window.location.reload(), 1500);

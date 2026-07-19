@@ -170,6 +170,7 @@
 (() => {
     const questId = {{ assignment.season_quest.id }};
     const seasonId = "{{ assignment.season_quest.season.id }}";
+    const participantId = {{ assignment.participant_id }};
     const phase = "{{ phase }}";
     let hasTransitioned = false;
 
@@ -229,16 +230,34 @@
 
     // ── WebSocket: instant updates when available ──
     const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/${seasonId}/`;
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/${seasonId}/?quest_id=${questId}&participant_id=${participantId}`;
 
     let ws = null;
     let reconnectDelay = 1000;
+    let pingIntervalId = null;
+
+    function stopPing() {
+        if (pingIntervalId !== null) {
+            clearInterval(pingIntervalId);
+            pingIntervalId = null;
+        }
+    }
+
+    function sendPresencePing() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ event: "presence_ping", quest_id: questId, participant_id: participantId }));
+    }
 
     function connectWs() {
         if (document.hidden) return;
         ws = new WebSocket(wsUrl);
 
-        ws.onopen = () => { reconnectDelay = 1000; };
+        ws.onopen = () => {
+            reconnectDelay = 1000;
+            sendPresencePing();
+            stopPing();
+            pingIntervalId = setInterval(sendPresencePing, 15000);
+        };
 
         ws.onmessage = (e) => {
             try {
@@ -255,6 +274,7 @@
 
         ws.onclose = () => {
             ws = null;
+            stopPing();
             if (!document.hidden) {
                 setTimeout(connectWs, reconnectDelay);
                 reconnectDelay = Math.min(reconnectDelay * 2, 30000);

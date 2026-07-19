@@ -1,4 +1,4 @@
-<div class="cq-quest-item d-flex">
+<div class="cq-quest-item d-flex" data-season-quest-id="{{ quest.id }}">
     <div class="cq-status-bar {{ quest.status }}{% if quest.participant_assignment %} {{ quest.participant_assignment.status }}{% endif %}"></div>
     <div class="flex-grow-1 p-3">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -14,6 +14,13 @@
                     {% if quest.participant_count %}
                     <span class="badge text-bg-light border small" title="{{ quest.participant_count }} participant{{ quest.participant_count|pluralize }}">👥 {{ quest.participant_count }}</span>
                     {% endif %}
+                    <span
+                        class="badge text-bg-success small cq-active-viewers{% if not quest.active_viewer_count %} d-none{% endif %}"
+                        data-quest-id="{{ quest.id }}"
+                        title="{{ quest.active_viewer_count }} participant{{ quest.active_viewer_count|pluralize }} online now"
+                    >
+                        🟢 <span class="cq-active-viewers-count">{{ quest.active_viewer_count }}</span> online now
+                    </span>
                 </div>
                 {% if quest.participant_assignment %}
                 <div class="mt-2">

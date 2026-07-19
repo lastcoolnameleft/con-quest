@@ -246,4 +246,64 @@
     }
 })();
 </script>
+<script>
+(() => {
+    const seasonId = "{{ assignment.season_quest.season_id }}";
+    const questId = {{ assignment.season_quest_id }};
+    const participantId = {{ assignment.participant_id }};
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/season/${seasonId}/?quest_id=${questId}&participant_id=${participantId}`;
+
+    let ws = null;
+    let pingIntervalId = null;
+    let reconnectDelay = 1000;
+
+    function stopPing() {
+        if (pingIntervalId !== null) {
+            clearInterval(pingIntervalId);
+            pingIntervalId = null;
+        }
+    }
+
+    function sendPresencePing() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ event: "presence_ping", quest_id: questId, participant_id: participantId }));
+    }
+
+    function connectWs() {
+        if (document.hidden) return;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            reconnectDelay = 1000;
+            sendPresencePing();
+            stopPing();
+            pingIntervalId = setInterval(sendPresencePing, 15000);
+        };
+
+        ws.onclose = () => {
+            ws = null;
+            stopPing();
+            if (!document.hidden) {
+                setTimeout(() => {
+                    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+                    connectWs();
+                }, reconnectDelay);
+            }
+        };
+    }
+
+    connectWs();
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+            if (ws) ws.close();
+        } else if (!ws) {
+            connectWs();
+        }
+    });
+    window.addEventListener("beforeunload", () => {
+        if (ws) ws.close();
+    });
+})();
+</script>
 {% endblock %}

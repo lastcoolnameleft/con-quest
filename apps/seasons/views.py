@@ -23,6 +23,7 @@ from apps.common.rate_limit import check_rate_limit
 from apps.common.rate_limit import client_identifier
 from apps.common.rate_limit import add_rate_limit_headers
 from apps.common.rate_limit import rate_limited_json_response
+from apps.realtime.presence import get_quest_online_counts
 from apps.quests.permissions import can_access_control_center
 from apps.quests.permissions import can_manage_season
 from apps.quests.permissions import can_create_quests
@@ -121,6 +122,13 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
         .annotate(participant_count=Count("assignments"))
         .order_by("-created_at", "-id")
     )
+    active_viewer_counts = get_quest_online_counts(
+        season_id=season.id,
+        quest_ids=[quest.id for quest in quests],
+    )
+    for quest in quests:
+        quest.active_viewer_count = active_viewer_counts.get(quest.id, 0)
+
     assignment_map: dict[int, QuestAssignment] = {}
     if participant:
         assignments = (
