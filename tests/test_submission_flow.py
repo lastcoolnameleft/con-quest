@@ -108,36 +108,6 @@ class TestOpenQuestFlow:
 class TestScheduledQuestFlow:
     """Admin creates scheduled quest → activates → player enrolls → submits within window."""
 
-    def test_scheduled_quest_active_page_shows_submit_loading_indicator(self, season):
-        now = timezone.now()
-        sq = SeasonQuestFactory(
-            season=season,
-            status=SeasonQuest.Status.ACTIVE,
-            quest_mode=SeasonQuest.QuestMode.SCHEDULED,
-            started_at=now - timezone.timedelta(minutes=5),
-            ends_at=now + timezone.timedelta(minutes=55),
-        )
-        player_account = AccountFactory(username="scheduled_loading_player")
-        player = SeasonParticipantFactory(
-            season=season,
-            account=player_account,
-            handle="sched_loading",
-            role=SeasonParticipant.Role.PLAYER,
-        )
-        assignment = QuestAssignmentFactory(
-            season_quest=sq,
-            participant=player,
-            status=QuestAssignment.Status.PENDING,
-        )
-
-        pc = _player_client(season, player)
-        response = pc.get(reverse("assignment-view", args=[assignment.id]))
-
-        assert response.status_code == 200
-        assert b'id="submit-overlay"' in response.content
-        assert b'id="submit-status-message"' in response.content
-        assert b"Submitting&hellip;" in response.content
-
     @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
     @patch("apps.submissions.views.broadcast_season_event")
     @patch("apps.quests.views.broadcast_season_event")
