@@ -12,15 +12,12 @@ from django.utils import timezone
 from apps.audit.models import AuditLog
 from apps.moderation.models import ModerationReport
 from apps.quests.models import QuestAssignment, SeasonQuest
-from apps.seasons.models import Season, SeasonParticipant
+from apps.seasons.models import SeasonParticipant
 from apps.submissions.models import Submission
 
 from .conftest import (
     AccountFactory,
-    ModerationReportFactory,
     QuestAssignmentFactory,
-    QuestFactory,
-    SeasonFactory,
     SeasonParticipantFactory,
     SeasonQuestFactory,
     SubmissionFactory,
@@ -52,19 +49,29 @@ def _host_client(season, host_participant):
 class TestOpenQuestFlow:
     """Player joins → claims open quest → submits → host scores → leaderboard."""
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
-    def test_full_open_quest_journey(self, mock_broadcast, mock_upload, season, host_participant):
+    def test_full_open_quest_journey(
+        self, mock_broadcast, mock_upload, season, host_participant
+    ):
         # 1. Create player + join season
         player_account = AccountFactory(username="open_player")
         player = SeasonParticipantFactory(
-            season=season, account=player_account, handle="open_player", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=player_account,
+            handle="open_player",
+            role=SeasonParticipant.Role.PLAYER,
         )
         pc = _player_client(season, player)
 
         # 2. Create active open quest
         sq = SeasonQuestFactory(
-            season=season, status=SeasonQuest.Status.ACTIVE, quest_mode=SeasonQuest.QuestMode.OPEN,
+            season=season,
+            status=SeasonQuest.Status.ACTIVE,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
         )
 
         # 3. Player claims quest (POST to season-quest-submit)
@@ -76,7 +83,10 @@ class TestOpenQuestFlow:
 
         # 4. Player submits text proof
         submit_url = reverse("assignment-submit", args=[assignment.id])
-        resp = pc.post(submit_url, {"text_response": "Here is my proof!", "submit_action": "submit"})
+        resp = pc.post(
+            submit_url,
+            {"text_response": "Here is my proof!", "submit_action": "submit"},
+        )
         assert resp.status_code == 302
         assignment.refresh_from_db()
         assert assignment.status == QuestAssignment.Status.SUBMITTED
@@ -108,11 +118,19 @@ class TestOpenQuestFlow:
 class TestScheduledQuestFlow:
     """Admin creates scheduled quest → activates → player enrolls → submits within window."""
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
     @patch("apps.quests.views.broadcast_season_event")
     def test_scheduled_quest_submit_within_window(
-        self, mock_quest_broadcast, mock_sub_broadcast, mock_upload, season, host_participant
+        self,
+        mock_quest_broadcast,
+        mock_sub_broadcast,
+        mock_upload,
+        season,
+        host_participant,
     ):
         now = timezone.now()
         # Pre-create an already-active scheduled quest with started_at in the past
@@ -129,7 +147,10 @@ class TestScheduledQuestFlow:
         # Player enrolls via RSVP
         player_account = AccountFactory(username="scheduled_player")
         player = SeasonParticipantFactory(
-            season=season, account=player_account, handle="sched_player", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=player_account,
+            handle="sched_player",
+            role=SeasonParticipant.Role.PLAYER,
         )
         pc = _player_client(season, player)
         enroll_url = reverse("season-quest-enroll", args=[sq.id])
@@ -139,16 +160,26 @@ class TestScheduledQuestFlow:
 
         # Player submits within window
         submit_url = reverse("assignment-submit", args=[assignment.id])
-        resp = pc.post(submit_url, {"text_response": "Scheduled proof", "submit_action": "submit"})
+        resp = pc.post(
+            submit_url, {"text_response": "Scheduled proof", "submit_action": "submit"}
+        )
         assert resp.status_code == 302
         assignment.refresh_from_db()
         assert assignment.status == QuestAssignment.Status.SUBMITTED
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
     @patch("apps.quests.views.broadcast_season_event")
     def test_scheduled_quest_reject_after_window(
-        self, mock_quest_broadcast, mock_sub_broadcast, mock_upload, season, host_participant
+        self,
+        mock_quest_broadcast,
+        mock_sub_broadcast,
+        mock_upload,
+        season,
+        host_participant,
     ):
         sq = SeasonQuestFactory(
             season=season,
@@ -162,14 +193,21 @@ class TestScheduledQuestFlow:
 
         player_account = AccountFactory(username="late_player")
         player = SeasonParticipantFactory(
-            season=season, account=player_account, handle="late_player", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=player_account,
+            handle="late_player",
+            role=SeasonParticipant.Role.PLAYER,
         )
         assignment = QuestAssignmentFactory(
-            season_quest=sq, participant=player, status=QuestAssignment.Status.PENDING,
+            season_quest=sq,
+            participant=player,
+            status=QuestAssignment.Status.PENDING,
         )
         pc = _player_client(season, player)
         submit_url = reverse("assignment-submit", args=[assignment.id])
-        resp = pc.post(submit_url, {"text_response": "Too late!", "submit_action": "submit"})
+        resp = pc.post(
+            submit_url, {"text_response": "Too late!", "submit_action": "submit"}
+        )
         assert resp.status_code == 302
         assignment.refresh_from_db()
         assert assignment.status == QuestAssignment.Status.PENDING  # not submitted
@@ -184,22 +222,38 @@ class TestScheduledQuestFlow:
 class TestDraftSubmissionFlow:
     """Player saves draft → edits → submits final."""
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
-    def test_draft_then_submit(self, mock_broadcast, mock_upload, season, host_participant):
-        sq = SeasonQuestFactory(season=season, status=SeasonQuest.Status.ACTIVE, quest_mode=SeasonQuest.QuestMode.OPEN)
+    def test_draft_then_submit(
+        self, mock_broadcast, mock_upload, season, host_participant
+    ):
+        sq = SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.ACTIVE,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
         player_account = AccountFactory(username="drafter")
         player = SeasonParticipantFactory(
-            season=season, account=player_account, handle="drafter", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=player_account,
+            handle="drafter",
+            role=SeasonParticipant.Role.PLAYER,
         )
         assignment = QuestAssignmentFactory(
-            season_quest=sq, participant=player, status=QuestAssignment.Status.PENDING,
+            season_quest=sq,
+            participant=player,
+            status=QuestAssignment.Status.PENDING,
         )
         pc = _player_client(season, player)
         submit_url = reverse("assignment-submit", args=[assignment.id])
 
         # 1. Save draft
-        resp = pc.post(submit_url, {"text_response": "WIP draft", "submit_action": "draft"})
+        resp = pc.post(
+            submit_url, {"text_response": "WIP draft", "submit_action": "draft"}
+        )
         assert resp.status_code == 302
         assignment.refresh_from_db()
         assert assignment.status == QuestAssignment.Status.PENDING
@@ -207,13 +261,19 @@ class TestDraftSubmissionFlow:
         assert submission.is_draft is True
 
         # 2. Submit final
-        resp = pc.post(submit_url, {"text_response": "Final version", "submit_action": "submit"})
+        resp = pc.post(
+            submit_url, {"text_response": "Final version", "submit_action": "submit"}
+        )
         assert resp.status_code == 302
         assignment.refresh_from_db()
         assert assignment.status == QuestAssignment.Status.SUBMITTED
         submission.refresh_from_db()
         assert submission.is_draft is False
         assert submission.text_response == "Final version"
+        mock_broadcast.assert_called_once()
+        assert (
+            mock_broadcast.call_args.kwargs["payload"]["event"] == "submission_created"
+        )
 
 
 # ===========================================================================
@@ -225,30 +285,49 @@ class TestDraftSubmissionFlow:
 class TestModerationFlow:
     """Player submits → another player reports → host resolves."""
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
-    def test_report_and_resolve_dismissed(self, mock_broadcast, mock_upload, season, host_participant):
-        sq = SeasonQuestFactory(season=season, status=SeasonQuest.Status.ACTIVE, quest_mode=SeasonQuest.QuestMode.OPEN)
+    def test_report_and_resolve_dismissed(
+        self, mock_broadcast, mock_upload, season, host_participant
+    ):
+        sq = SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.ACTIVE,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
         # Player submits
         submitter_account = AccountFactory(username="submitter")
         submitter = SeasonParticipantFactory(
-            season=season, account=submitter_account, handle="submitter", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=submitter_account,
+            handle="submitter",
+            role=SeasonParticipant.Role.PLAYER,
         )
         assignment = QuestAssignmentFactory(
-            season_quest=sq, participant=submitter, status=QuestAssignment.Status.SUBMITTED,
+            season_quest=sq,
+            participant=submitter,
+            status=QuestAssignment.Status.SUBMITTED,
         )
         submission = SubmissionFactory(quest_assignment=assignment)
 
         # Reporter reports submission
         reporter_account = AccountFactory(username="reporter")
         reporter = SeasonParticipantFactory(
-            season=season, account=reporter_account, handle="reporter", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=reporter_account,
+            handle="reporter",
+            role=SeasonParticipant.Role.PLAYER,
         )
         rc = _player_client(season, reporter)
         report_url = reverse("submission-report", args=[submission.id])
         resp = rc.post(report_url, {"reason": "spam", "details": "Looks like spam"})
         assert resp.status_code == 302
-        report = ModerationReport.objects.get(reporter_participant=reporter, target_id=str(submission.id))
+        report = ModerationReport.objects.get(
+            reporter_participant=reporter, target_id=str(submission.id)
+        )
         assert report.status == ModerationReport.Status.OPEN
 
         # Host resolves as dismissed
@@ -259,24 +338,43 @@ class TestModerationFlow:
         report.refresh_from_db()
         assert report.status == ModerationReport.Status.DISMISSED
         assert report.resolved_at is not None
-        assert AuditLog.objects.filter(action_type="moderation.report.resolved").exists()
+        assert AuditLog.objects.filter(
+            action_type="moderation.report.resolved"
+        ).exists()
 
-    @patch("apps.submissions.views.upload_submission_media", return_value="https://blob/test.jpg")
+    @patch(
+        "apps.submissions.views.upload_submission_media",
+        return_value="https://blob/test.jpg",
+    )
     @patch("apps.submissions.views.broadcast_season_event")
-    def test_report_and_resolve_actioned(self, mock_broadcast, mock_upload, season, host_participant):
-        sq = SeasonQuestFactory(season=season, status=SeasonQuest.Status.ACTIVE, quest_mode=SeasonQuest.QuestMode.OPEN)
+    def test_report_and_resolve_actioned(
+        self, mock_broadcast, mock_upload, season, host_participant
+    ):
+        sq = SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.ACTIVE,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
         submitter_account = AccountFactory(username="submitter2")
         submitter = SeasonParticipantFactory(
-            season=season, account=submitter_account, handle="submitter2", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=submitter_account,
+            handle="submitter2",
+            role=SeasonParticipant.Role.PLAYER,
         )
         assignment = QuestAssignmentFactory(
-            season_quest=sq, participant=submitter, status=QuestAssignment.Status.SUBMITTED,
+            season_quest=sq,
+            participant=submitter,
+            status=QuestAssignment.Status.SUBMITTED,
         )
         submission = SubmissionFactory(quest_assignment=assignment)
 
         reporter_account = AccountFactory(username="reporter2")
         reporter = SeasonParticipantFactory(
-            season=season, account=reporter_account, handle="reporter2", role=SeasonParticipant.Role.PLAYER,
+            season=season,
+            account=reporter_account,
+            handle="reporter2",
+            role=SeasonParticipant.Role.PLAYER,
         )
         rc = _player_client(season, reporter)
         report_url = reverse("submission-report", args=[submission.id])

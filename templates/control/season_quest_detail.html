@@ -40,6 +40,7 @@
                         <th>Status</th>
                         <th>Score</th>
                         <th>Submitted</th>
+                        <th>Details</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -59,6 +60,18 @@
                             {% if item.submission %}
                             {{ item.submission.submitted_at|timezone:season.timezone|date:"M j, g:i a" }}
                             {% if item.submission.is_late %}<span class="cq-badge cq-badge-draft ms-1">Late</span>{% endif %}
+                            {% else %}
+                            &mdash;
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if item.submission %}
+                                {% if item.response_preview %}
+                                <div>{{ item.response_preview }}</div>
+                                {% endif %}
+                                <div class="text-muted">
+                                    {{ item.media_count }} media file{{ item.media_count|pluralize }}
+                                </div>
                             {% else %}
                             &mdash;
                             {% endif %}
