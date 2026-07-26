@@ -3,18 +3,11 @@ from django.db.models import QuerySet
 
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
+from apps.seasons.session import get_bound_participant_ids
 
 
 def _session_participant_ids(request: HttpRequest) -> list[int]:
-    participant_ids: list[int] = []
-    for key, value in request.session.items():
-        if not key.startswith("season_participant_"):
-            continue
-        try:
-            participant_ids.append(int(value))
-        except (TypeError, ValueError):
-            continue
-    return participant_ids
+    return get_bound_participant_ids(request)
 
 
 def can_access_control_center(request: HttpRequest) -> bool:

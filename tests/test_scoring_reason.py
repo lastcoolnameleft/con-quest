@@ -49,7 +49,7 @@ class ScoringReasonTests(TestCase):
         session[f"season_participant_{self.season.id}"] = self.host.id
         session.save()
 
-    def test_scoring_requires_judge_note(self):
+    def test_scoring_allows_empty_judge_note(self):
         response = self.client.post(
             reverse("submission-score", kwargs={"submission_id": self.submission.id}),
             {"score": 4, "judge_note": ""},
@@ -57,7 +57,8 @@ class ScoringReasonTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         self.submission.refresh_from_db()
-        self.assertEqual(self.submission.score, 3)
+        self.assertEqual(self.submission.score, 4)
+        self.assertEqual(self.submission.judge_note, "")
 
     def test_scoring_queue_shows_judge_note_in_timeline(self):
         response = self.client.post(

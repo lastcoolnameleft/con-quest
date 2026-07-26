@@ -6,6 +6,7 @@ from apps.quests.models import QuestAssignment
 from apps.quests.models import SeasonQuest
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
+from apps.submissions.storage import signed_read_url
 
 
 def season_leaderboard(request: HttpRequest, slug: str) -> HttpResponse:
@@ -41,6 +42,7 @@ def season_leaderboard(request: HttpRequest, slug: str) -> HttpResponse:
     assignments = (
         QuestAssignment.objects.filter(season_quest__season=season)
         .select_related("participant", "submission", "season_quest")
+        .prefetch_related("submission__media_items")
         .order_by("-season_quest__created_at", "-season_quest__id", "-submission__score", "participant__handle")
     )
 
@@ -60,14 +62,26 @@ def season_leaderboard(request: HttpRequest, slug: str) -> HttpResponse:
             key=lambda x: (-(x.submission.score or 0) if hasattr(x, "submission") and x.submission else 0, x.participant.handle),
         ):
             score = None
+            response_text = ""
+            media_items: list[dict[str, str]] = []
             if hasattr(a, "submission") and a.submission:
                 score = a.submission.score
+                response_text = (a.submission.text_response or "").strip()
+                for media in a.submission.media_items.all():
+                    media_items.append(
+                        {
+                            "url": signed_read_url(media.blob_path_or_url),
+                            "media_type": media.media_type,
+                        }
+                    )
             entries.append(
                 {
                     "rank": quest_rank,
                     "handle": a.participant.handle,
                     "status": a.status,
                     "score": score,
+                    "response_text": response_text,
+                    "media_items": media_items,
                 }
             )
             quest_rank += 1

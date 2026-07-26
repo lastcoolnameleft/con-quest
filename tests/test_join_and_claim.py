@@ -92,10 +92,11 @@ class JoinAndClaimTests(TestCase):
         session.save()
 
         response = self.client.get(reverse("season-index"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Your Seasons")
-        self.assertContains(response, self.season.title)
-        self.assertContains(response, "1 quest ready")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("season-detail", kwargs={"slug": self.season.slug}),
+        )
 
     def test_index_shows_both_available_and_pending_quests(self):
         participant = SeasonParticipant.objects.create(
@@ -126,9 +127,11 @@ class JoinAndClaimTests(TestCase):
         session.save()
 
         response = self.client.get(reverse("season-index"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "1 quest ready")
-        self.assertContains(response, "1 coming soon")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("season-detail", kwargs={"slug": self.season.slug}),
+        )
 
     def test_archived_season_hidden_on_index_but_still_accessible_directly(self):
         participant = SeasonParticipant.objects.create(
@@ -250,6 +253,13 @@ class JoinAndClaimTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "notif-player")
 
+    def test_season_detail_uses_single_join_flow(self):
+        response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Join from Home")
+        self.assertNotContains(response, "action=\"/seasons/dragoncon-2026/join/\"")
+
     def test_season_detail_shows_online_viewer_count_for_quest(self):
         participant = SeasonParticipant.objects.create(
             season=self.season,
@@ -284,3 +294,40 @@ class JoinAndClaimTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "online now")
+
+    def test_live_scheduled_quest_banner_links_to_assignment(self):
+        participant = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="scheduled-player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        quest_template = Quest.objects.create(title="Scheduled Quest", description="Desc")
+        season_quest = SeasonQuest.objects.create(
+            season=self.season,
+            quest=quest_template,
+            title_override="Room Challenge",
+            quest_mode=SeasonQuest.QuestMode.SCHEDULED,
+            status=SeasonQuest.Status.ACTIVE,
+        )
+        assignment = QuestAssignment.objects.create(
+            season_quest=season_quest,
+            participant=participant,
+            status=QuestAssignment.Status.PENDING,
+        )
+
+        session = self.client.session
+        session[f"season_participant_{self.season.id}"] = participant.id
+        session.save()
+
+        response = self.client.get(
+            reverse("season-detail", kwargs={"slug": self.season.slug})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Live scheduled quest:")
+        self.assertContains(response, "Room Challenge")
+        self.assertContains(
+            response,
+            reverse("assignment-submit", kwargs={"assignment_id": assignment.id}),
+        )

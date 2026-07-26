@@ -6,7 +6,6 @@ import factory
 import pytest
 from django.core.cache import cache
 from django.test import Client
-from django.utils import timezone
 
 from apps.accounts.models import Account
 from apps.audit.models import AuditLog
@@ -78,8 +77,8 @@ class SeasonQuestFactory(factory.django.DjangoModelFactory):
     duration_seconds = 120
     points_max = 5
     reveal_policy = SeasonQuest.RevealPolicy.INSTANT
-    allow_late_submissions = False
-    late_grace_seconds = 0
+    allow_late_submissions = True
+    late_grace_seconds = 300
 
 
 class QuestAssignmentFactory(factory.django.DjangoModelFactory):

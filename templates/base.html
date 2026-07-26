@@ -63,6 +63,19 @@
     </div>
 </nav>
 <main class="container py-4">
+    {% if active_scheduled_banner %}
+    <a
+        class="alert alert-info d-flex justify-content-between align-items-center text-decoration-none"
+        role="status"
+        href="{{ active_scheduled_banner.url }}"
+    >
+        <div>
+            <strong>Live scheduled quest:</strong> {{ active_scheduled_banner.title }}
+            <span class="small text-muted d-block">Season: {{ active_scheduled_banner.season_title }}</span>
+        </div>
+        <span class="btn btn-sm btn-primary">Open</span>
+    </a>
+    {% endif %}
     {% if messages %}
     <div class="mb-3">
         {% for message in messages %}

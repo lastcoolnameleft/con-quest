@@ -13,14 +13,10 @@ from apps.audit.models import AuditLog
 from apps.moderation.models import ModerationReport
 from apps.quests.models import QuestAssignment, SeasonQuest
 from apps.seasons.models import Season, SeasonParticipant
-from apps.submissions.models import Submission
 
 from .conftest import (
-    AccountFactory,
-    AuditLogFactory,
     ModerationReportFactory,
     QuestAssignmentFactory,
-    QuestFactory,
     SeasonFactory,
     SeasonParticipantFactory,
     SeasonQuestFactory,
@@ -158,6 +154,25 @@ class TestTransitionSeasonQuestStatusView:
         assert sq.started_at is None
 
     @patch("apps.quests.views.broadcast_season_event")
+    def test_cannot_activate_second_active_quest_in_same_season(self, mock_broadcast, season, host_participant):
+        SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.ACTIVE,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
+        sq = SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.PENDING,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
+        client = self._make_staff_client(season, host_participant)
+        url = reverse("season-quest-status", args=[sq.id])
+        resp = client.post(url, {"status": "active"})
+        assert resp.status_code == 302
+        sq.refresh_from_db()
+        assert sq.status == SeasonQuest.Status.PENDING
+
+    @patch("apps.quests.views.broadcast_season_event")
     def test_valid_transition_pending_to_active_scheduled(self, mock_broadcast, season, host_participant):
         sq = SeasonQuestFactory(
             season=season, status="pending",
@@ -173,6 +188,24 @@ class TestTransitionSeasonQuestStatusView:
         assert sq.started_at is not None
         assert sq.ends_at is not None
         mock_broadcast.assert_called()
+
+    @patch("apps.quests.views.broadcast_season_event")
+    def test_pending_transition_broadcasts_status_change(self, mock_broadcast, season, host_participant):
+        sq = SeasonQuestFactory(
+            season=season,
+            status=SeasonQuest.Status.DRAFT,
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+        )
+        client = self._make_staff_client(season, host_participant)
+        url = reverse("season-quest-status", args=[sq.id])
+        resp = client.post(url, {"status": "pending"})
+        assert resp.status_code == 302
+        sq.refresh_from_db()
+        assert sq.status == SeasonQuest.Status.PENDING
+        assert any(
+            call.kwargs.get("payload", {}).get("event") == "quest_status_changed"
+            for call in mock_broadcast.call_args_list
+        )
 
     @patch("apps.quests.views.broadcast_season_event")
     def test_valid_transition_active_to_complete_sets_ends_at(self, mock_broadcast, season, host_participant):

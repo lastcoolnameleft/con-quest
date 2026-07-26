@@ -27,7 +27,6 @@ class SubmissionForm(BootstrapFormMixin, forms.Form):
 class ScoreSubmissionForm(BootstrapFormMixin, forms.Form):
     score = forms.IntegerField(min_value=0, max_value=5)
     judge_note = forms.CharField(
-        required=True,
+        required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
-        error_messages={"required": "Judge note is required before scoring."},
     )

@@ -66,12 +66,23 @@
                         </td>
                         <td class="small">
                             {% if item.submission %}
-                                {% if item.response_preview %}
-                                <div>{{ item.response_preview }}</div>
+                                {% if item.response_text %}
+                                <div class="mb-2">{{ item.response_text|linebreaksbr }}</div>
                                 {% endif %}
                                 <div class="text-muted">
                                     {{ item.media_count }} media file{{ item.media_count|pluralize }}
                                 </div>
+                                {% if item.media_previews %}
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    {% for media in item.media_previews %}
+                                    {% if media.media_type == "image" %}
+                                    <img src="{{ media.url }}" alt="Submission preview {{ forloop.counter }}" class="rounded border cq-expandable-img" data-full-src="{{ media.url }}" style="width:56px;height:56px;object-fit:cover;">
+                                    {% else %}
+                                    <a href="{{ media.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">Video {{ forloop.counter }}</a>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             {% else %}
                             &mdash;
                             {% endif %}

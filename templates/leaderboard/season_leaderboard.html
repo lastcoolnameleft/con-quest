@@ -56,6 +56,8 @@
                             <th>Handle</th>
                             <th>Status</th>
                             <th>Score</th>
+                            <th>Submission</th>
+                            <th>Media</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -67,6 +69,28 @@
                             <td>{{ entry.handle }}</td>
                             <td><span class="cq-badge cq-badge-{{ entry.status }}">{{ entry.status }}</span></td>
                             <td>{% if entry.score is not None %}<strong>{{ entry.score }}</strong>{% else %}&mdash;{% endif %}</td>
+                            <td class="small">
+                                {% if entry.response_text %}
+                                {{ entry.response_text|linebreaksbr }}
+                                {% else %}
+                                &mdash;
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                {% if entry.media_items %}
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for media in entry.media_items %}
+                                    {% if media.media_type == "image" %}
+                                    <img src="{{ media.url }}" alt="Submission image {{ forloop.counter }}" class="rounded border cq-expandable-img" data-full-src="{{ media.url }}" style="width:56px;height:56px;object-fit:cover;">
+                                    {% else %}
+                                    <a href="{{ media.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">Video {{ forloop.counter }}</a>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                &mdash;
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

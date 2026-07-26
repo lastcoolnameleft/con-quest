@@ -15,6 +15,7 @@ from apps.seasons.forms import SeasonForm
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
 from apps.seasons.session import bind_session_participant
+from apps.seasons.session import get_bound_participant_ids
 from apps.seasons.session import get_session_participant
 from apps.quests.models import QuestAssignment
 from apps.quests.models import Quest
@@ -39,66 +40,62 @@ def index(request: HttpRequest) -> HttpResponse:
     ).strip().upper()
     join_form = SeasonJoinForm(initial={"join_code": prefill_code} if prefill_code else None)
 
-    session_participant_ids = [
-        int(value)
-        for key, value in request.session.items()
-        if key.startswith("season_participant_") and str(value).isdigit()
-    ]
+    session_participant_ids = get_bound_participant_ids(request)
     participant_filter = Q(id__in=session_participant_ids)
     if request.user.is_authenticated:
         participant_filter |= Q(account=request.user)
 
-    joined_participants = list(
+    joined_participants_qs = (
         SeasonParticipant.objects.filter(participant_filter)
         .select_related("season")
         .exclude(season__status=Season.Status.ARCHIVED)
         .order_by("-joined_at")
         .distinct()
     )
-    assignments_by_participant: dict[int, list[QuestAssignment]] = {}
-    if joined_participants:
-        assignments = (
-            QuestAssignment.objects.filter(participant__in=joined_participants)
+    joined_participants = list(joined_participants_qs[:10])
+    active_participant = joined_participants[0] if joined_participants else None
+    if active_participant:
+        bind_session_participant(request, active_participant.season, active_participant)
+
+    can_access_control = can_access_control_center(request)
+    if active_participant and not can_access_control:
+        return redirect("season-detail", slug=active_participant.season.slug)
+
+    active_season_entry = None
+    if active_participant:
+        assignments = list(
+            QuestAssignment.objects.filter(participant=active_participant)
             .select_related("season_quest__quest")
             .order_by("season_quest__created_at", "season_quest__id")
         )
-        for assignment in assignments:
-            assignments_by_participant.setdefault(assignment.participant_id, []).append(assignment)
-
-    # Get quest counts for each season
-    seasons = {p.season_id: p.season for p in joined_participants}
-    active_quests_by_season: dict[int, int] = {}
-    pending_quests_by_season: dict[int, int] = {}
-    if seasons:
-        for season_id, season in seasons.items():
-            active_quests_by_season[season_id] = season.quests.filter(status=SeasonQuest.Status.ACTIVE).count()
-            pending_quests_by_season[season_id] = season.quests.filter(status=SeasonQuest.Status.PENDING).count()
-
-    joined_seasons = []
-    for participant in joined_participants:
-        assignments = assignments_by_participant.get(participant.id, [])
         submitted_to_active_count = sum(
-            1 for a in assignments
-            if a.status in [QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED]
-            and a.season_quest.status == SeasonQuest.Status.ACTIVE
+            1
+            for assignment in assignments
+            if assignment.status in [QuestAssignment.Status.SUBMITTED, QuestAssignment.Status.SCORED]
+            and assignment.season_quest.status == SeasonQuest.Status.ACTIVE
         )
-        active_quest_count = active_quests_by_season.get(participant.season_id, 0)
-        available_to_submit = active_quest_count - submitted_to_active_count
-        joined_seasons.append({
-            "participant": participant,
-            "season": participant.season,
-            "assignments": assignments,
-            "available_to_submit": max(0, available_to_submit),
-            "pending_quest_count": pending_quests_by_season.get(participant.season_id, 0),
-        })
+        active_quest_count = active_participant.season.quests.filter(
+            status=SeasonQuest.Status.ACTIVE
+        ).count()
+        available_to_submit = max(0, active_quest_count - submitted_to_active_count)
+        pending_quest_count = active_participant.season.quests.filter(
+            status=SeasonQuest.Status.PENDING
+        ).count()
+        active_season_entry = {
+            "participant": active_participant,
+            "season": active_participant.season,
+            "available_to_submit": available_to_submit,
+            "pending_quest_count": pending_quest_count,
+        }
 
     return render(
         request,
         "seasons/index.html",
         {
             "join_form": join_form,
-            "joined_seasons": joined_seasons,
+            "active_season_entry": active_season_entry,
             "can_create_quests": can_create_quests(request),
+            "can_access_control": can_access_control,
         },
     )
 
@@ -191,7 +188,6 @@ def season_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "season": season,
             "participant": participant,
             "can_manage_quests": can_manage_quests,
-            "join_form": SeasonJoinForm(),
             "quests": quests,
             "active_quests": active_quests,
             "past_quests": past_quests,

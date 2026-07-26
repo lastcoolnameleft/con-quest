@@ -108,6 +108,22 @@ class SeasonQuestForm(BootstrapFormMixin, forms.ModelForm):
             cleaned_data["closes_at"] = None
             return cleaned_data
 
+        if season:
+            existing_scheduled = (
+                SeasonQuest.objects.filter(
+                    season=season,
+                    quest_mode=SeasonQuest.QuestMode.SCHEDULED,
+                )
+                .exclude(pk=self.instance.pk)
+                .exclude(status=SeasonQuest.Status.ARCHIVED)
+                .exists()
+            )
+            if existing_scheduled:
+                self.add_error(
+                    "quest_mode",
+                    "Only one scheduled quest is allowed per season. Archive the existing scheduled quest first.",
+                )
+
         has_open_time = opens_at is not None
         has_close_time = closes_at is not None
 

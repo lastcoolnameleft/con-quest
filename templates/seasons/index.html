@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% if not joined_seasons %}
+{% if not active_season_entry %}
 <div class="cq-hero">
     <img src="/static/images/logo.png" alt="Con-Quest" width="200" height="200" class="cq-hero-logo mb-3">
     <h1>ConQuest</h1>
@@ -25,16 +25,16 @@
 
 <div class="row justify-content-center mt-4">
     <div class="col-lg-7 col-xl-6">
-        {% if joined_seasons %}
-        <h2 class="h5 mb-3 d-flex align-items-center gap-2">Your Seasons</h2>
-        {% for entry in joined_seasons %}
+        {% if active_season_entry %}
+        <h2 class="h5 mb-3 d-flex align-items-center gap-2">Current Season</h2>
+        {% with entry=active_season_entry %}
         <div class="cq-season-card d-flex align-items-start gap-3">
             <div class="cq-status-bar active"></div>
             <div class="flex-grow-1">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
                         <strong class="d-block fs-6">{{ entry.season.title }}</strong>
-                        <span class="cq-joined-badge mt-1">Playing as {{ entry.participant.handle }}</span>
+                        <span class="cq-joined-badge mt-1">👤 {{ entry.participant.handle }}</span>
                     </div>
                     <a class="btn btn-cq-primary btn-sm" href="{% url 'season-detail' entry.season.slug %}">Open →</a>
                 </div>
@@ -50,7 +50,7 @@
                 {% endif %}
             </div>
         </div>
-        {% endfor %}
+        {% endwith %}
 
         <hr class="my-4">
         {% endif %}

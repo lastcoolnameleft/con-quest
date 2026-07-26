@@ -340,7 +340,7 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertNotContains(player_response, "Visible Quest")
 
         # Participant: home page shows 0 quests for this season
-        player_home = player_client.get(reverse("season-index"))
+        player_home = player_client.get(reverse("season-index"), follow=True)
         self.assertContains(player_home, "State Machine Season")
         self.assertNotContains(player_home, "Visible Quest")
 
@@ -431,7 +431,7 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertContains(player_response, "Edit")
 
         # Home page: no quests available (already submitted for the only active one)
-        player_home = player_client.get(reverse("season-index"))
+        player_home = player_client.get(reverse("season-index"), follow=True)
         self.assertNotContains(player_home, "quest ready")
 
         # --- Step 6: Admin scores the submission ---
@@ -545,7 +545,7 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertNotContains(player_response, "View Submission")
 
         # Home page: no actionable quests
-        player_home = player_client.get(reverse("season-index"))
+        player_home = player_client.get(reverse("season-index"), follow=True)
         self.assertNotContains(player_home, "available to submit")
 
     def test_leaderboard_scale_with_many_participants(self):

@@ -43,7 +43,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'assignment-submit' assignment.id %}" enctype="multipart/form-data" class="card shadow-sm border-0">
+        <form method="post" action="{% url 'assignment-submit' assignment.id %}" enctype="multipart/form-data" class="card shadow-sm border-0 position-relative" id="scheduled-submission-form">
             {% csrf_token %}
             <div class="card-body">
                 {% if submission and not can_edit_submission %}
@@ -92,9 +92,15 @@
             <div class="card-footer d-flex justify-content-end gap-2">
                 <a class="btn btn-outline-secondary" href="{% url 'season-detail' assignment.season_quest.season.slug %}">Cancel</a>
                 {% if can_edit_submission %}
-                <button class="btn btn-outline-primary" type="submit" name="submit_action" value="draft">Save Draft</button>
-                <button class="btn btn-primary" type="submit" name="submit_action" value="submit">Submit for scoring</button>
+                <button class="btn btn-outline-primary" type="submit" name="submit_action" value="draft" data-loading-label="Saving draft...">Save Draft</button>
+                <button class="btn btn-primary" type="submit" name="submit_action" value="submit" data-loading-label="Submitting for scoring...">Submit for scoring</button>
                 {% endif %}
+            </div>
+            <div id="scheduled-submit-overlay" class="d-none position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(255,255,255,0.85); z-index: 10; border-radius: inherit;">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">Submitting...</span></div>
+                    <div class="fw-semibold" id="scheduled-submit-overlay-label">Submitting...</div>
+                </div>
             </div>
         </form>
 
@@ -168,6 +174,34 @@
 
 <script>
 (() => {
+    const submitForm = document.getElementById("scheduled-submission-form");
+    if (submitForm) {
+        const overlay = document.getElementById("scheduled-submit-overlay");
+        const overlayLabel = document.getElementById("scheduled-submit-overlay-label");
+        let submitInFlight = false;
+
+        submitForm.addEventListener("submit", (event) => {
+            if (submitInFlight) {
+                event.preventDefault();
+                return;
+            }
+            submitInFlight = true;
+
+            const submitter = event.submitter;
+            const loadingLabel = submitter?.dataset?.loadingLabel || "Submitting...";
+            if (overlayLabel) {
+                overlayLabel.textContent = loadingLabel;
+            }
+            if (overlay) {
+                overlay.classList.remove("d-none");
+                overlay.classList.add("d-flex");
+            }
+            submitForm.querySelectorAll('button[type="submit"]').forEach((btn) => {
+                btn.disabled = true;
+            });
+        });
+    }
+
     const questId = {{ assignment.season_quest.id }};
     const seasonId = "{{ assignment.season_quest.season.id }}";
     const participantId = {{ assignment.participant_id }};

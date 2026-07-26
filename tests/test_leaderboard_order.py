@@ -8,6 +8,7 @@ from apps.quests.models import SeasonQuest
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
 from apps.submissions.models import Submission
+from apps.submissions.models import SubmissionMedia
 
 
 class LeaderboardOrderTests(TestCase):
@@ -61,3 +62,33 @@ class LeaderboardOrderTests(TestCase):
         rows = response.context["leaderboard"]
         self.assertEqual(rows[0]["total_score"], 0)
         self.assertEqual(rows[0]["rank"], 1)
+
+    def test_per_quest_results_show_submission_text_and_media(self):
+        participant = SeasonParticipant.objects.create(
+            season=self.season,
+            handle="media-player",
+            role=SeasonParticipant.Role.PLAYER,
+            is_guest=True,
+        )
+        assignment = QuestAssignment.objects.create(
+            season_quest=self.season_quest,
+            participant=participant,
+            status=QuestAssignment.Status.SCORED,
+        )
+        submission = Submission.objects.create(
+            quest_assignment=assignment,
+            text_response="Found the hidden dragon statue",
+            score=4,
+        )
+        SubmissionMedia.objects.create(
+            submission=submission,
+            blob_path_or_url="https://example.com/media/proof.jpg",
+            media_type=SubmissionMedia.MediaType.IMAGE,
+            mime_type="image/jpeg",
+            file_size_bytes=1024,
+        )
+
+        response = self.client.get(reverse("season-leaderboard", kwargs={"slug": self.season.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Found the hidden dragon statue")
+        self.assertContains(response, "https://example.com/media/proof.jpg")

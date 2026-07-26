@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
+from django.db import IntegrityError
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -19,6 +20,7 @@ from apps.quests.permissions import can_create_quests
 from apps.seasons.models import Season
 from apps.seasons.models import SeasonParticipant
 from apps.seasons.session import get_session_participant
+from apps.submissions.storage import signed_read_url
 
 
 def _activate_quest_window(season_quest: SeasonQuest) -> None:
@@ -43,6 +45,13 @@ def _activate_quest_window(season_quest: SeasonQuest) -> None:
             "server_time": now.isoformat(),
         },
     )
+
+
+def _season_has_other_active_quest(season_quest: SeasonQuest) -> bool:
+    return SeasonQuest.objects.filter(
+        season_id=season_quest.season_id,
+        status=SeasonQuest.Status.ACTIVE,
+    ).exclude(id=season_quest.id).exists()
 
 
 def season_quest_create(request: HttpRequest, slug: str) -> HttpResponse:
@@ -278,7 +287,27 @@ def start_scheduled_quest(request: HttpRequest, quest_id: int) -> HttpResponse:
             remaining=limit - current_count,
         )
 
-    _activate_quest_window(season_quest)
+    if _season_has_other_active_quest(season_quest):
+        messages.error(request, "Only one quest can be active in a season at a time.")
+        response = redirect("control-dashboard")
+        return add_rate_limit_headers(
+            response,
+            limit=limit,
+            window_seconds=window_seconds,
+            remaining=limit - current_count,
+        )
+
+    try:
+        _activate_quest_window(season_quest)
+    except IntegrityError:
+        messages.error(request, "Only one quest can be active in a season at a time.")
+        response = redirect("control-dashboard")
+        return add_rate_limit_headers(
+            response,
+            limit=limit,
+            window_seconds=window_seconds,
+            remaining=limit - current_count,
+        )
 
     messages.success(
         request, f"Scheduled quest '{season_quest.resolved_title}' started."
@@ -312,11 +341,22 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
         return redirect("control-dashboard")
 
     if target_status == SeasonQuest.Status.ACTIVE:
+        if _season_has_other_active_quest(season_quest):
+            messages.error(request, "Only one quest can be active in a season at a time.")
+            return redirect("control-dashboard")
         if season_quest.quest_mode == SeasonQuest.QuestMode.SCHEDULED:
-            _activate_quest_window(season_quest)
+            try:
+                _activate_quest_window(season_quest)
+            except IntegrityError:
+                messages.error(request, "Only one quest can be active in a season at a time.")
+                return redirect("control-dashboard")
         else:
             season_quest.status = SeasonQuest.Status.ACTIVE
-            season_quest.save(update_fields=["status", "updated_at"])
+            try:
+                season_quest.save(update_fields=["status", "updated_at"])
+            except IntegrityError:
+                messages.error(request, "Only one quest can be active in a season at a time.")
+                return redirect("control-dashboard")
             broadcast_season_event(
                 season_id=season_quest.season_id,
                 payload={
@@ -348,6 +388,16 @@ def transition_season_quest_status(request: HttpRequest, quest_id: int) -> HttpR
 
     season_quest.status = target_status
     season_quest.save(update_fields=["status", "updated_at"])
+    broadcast_season_event(
+        season_id=season_quest.season_id,
+        payload={
+            "event": "quest_status_changed",
+            "season_quest_id": season_quest.id,
+            "title": season_quest.resolved_title,
+            "status": season_quest.status,
+            "quest_url": f"/seasons/{season_quest.season.slug}/",
+        },
+    )
     messages.success(request, f"Quest moved to {season_quest.get_status_display()}.")
     return redirect("control-dashboard")
 
@@ -439,13 +489,20 @@ def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResp
     submissions_data = []
     for assignment in assignments:
         submission = getattr(assignment, "submission", None)
-        response_preview = ""
+        response_text = ""
         media_count = 0
+        media_previews: list[dict[str, str]] = []
         if submission:
-            response_preview = submission.text_response.strip()
-            if len(response_preview) > 120:
-                response_preview = f"{response_preview[:117]}..."
-            media_count = submission.media_items.count()
+            response_text = submission.text_response.strip()
+            media_items = list(submission.media_items.all())
+            media_count = len(media_items)
+            for media in media_items[:3]:
+                media_previews.append(
+                    {
+                        "url": signed_read_url(media.blob_path_or_url),
+                        "media_type": media.media_type,
+                    }
+                )
 
         submissions_data.append(
             {
@@ -454,8 +511,9 @@ def control_season_quest_detail(request: HttpRequest, quest_id: int) -> HttpResp
                 "submission": submission,
                 "score": submission.score if submission else None,
                 "status": assignment.get_status_display(),
-                "response_preview": response_preview,
+                "response_text": response_text,
                 "media_count": media_count,
+                "media_previews": media_previews,
             }
         )
 

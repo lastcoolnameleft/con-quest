@@ -90,3 +90,22 @@ class ScheduledFairnessTests(TestCase):
         self.assertEqual(self.scheduled_quest.started_at, first_started_at)
         self.assertEqual(self.scheduled_quest.ends_at, first_ends_at)
         broadcast_mock.assert_not_called()
+
+    @patch("apps.quests.views.broadcast_season_event")
+    def test_start_rejected_when_another_quest_is_active(self, broadcast_mock):
+        template = Quest.objects.create(title="Other Quest", description="Desc")
+        SeasonQuest.objects.create(
+            season=self.season,
+            quest=template,
+            title_override="Already Live",
+            quest_mode=SeasonQuest.QuestMode.OPEN,
+            status=SeasonQuest.Status.ACTIVE,
+        )
+
+        response = self.client.post(
+            reverse("season-quest-start", kwargs={"quest_id": self.scheduled_quest.id})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.scheduled_quest.refresh_from_db()
+        self.assertEqual(self.scheduled_quest.status, SeasonQuest.Status.PENDING)
+        broadcast_mock.assert_not_called()

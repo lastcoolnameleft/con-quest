@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 from apps.seasons.models import Season, SeasonParticipant
 
@@ -50,15 +51,15 @@ class SeasonQuest(models.Model):
     rsvp_code = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
     start_mode = models.CharField(max_length=20, default="admin_triggered")
-    duration_seconds = models.PositiveIntegerField(default=120)
+    duration_seconds = models.PositiveIntegerField(default=300)
     opens_at = models.DateTimeField(null=True, blank=True)
     closes_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True, blank=True)
     reveal_policy = models.CharField(max_length=20, choices=RevealPolicy.choices, default=RevealPolicy.INSTANT)
     points_max = models.PositiveSmallIntegerField(default=5)
-    allow_late_submissions = models.BooleanField(default=False)
-    late_grace_seconds = models.PositiveIntegerField(default=0)
+    allow_late_submissions = models.BooleanField(default=True)
+    late_grace_seconds = models.PositiveIntegerField(default=300)
     created_by_participant = models.ForeignKey(
         SeasonParticipant,
         null=True,
@@ -68,6 +69,15 @@ class SeasonQuest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["season"],
+                condition=Q(status="active"),
+                name="season_single_active_quest",
+            )
+        ]
 
     @property
     def resolved_title(self) -> str:
@@ -85,6 +95,17 @@ class SeasonQuest(models.Model):
         if self.quest_mode == self.QuestMode.SCHEDULED:
             if self.duration_seconds == 0:
                 raise ValidationError("Scheduled quests must have a positive duration.")
+        if self.status == self.Status.ACTIVE and self.season_id:
+            already_active = (
+                SeasonQuest.objects.filter(
+                    season_id=self.season_id,
+                    status=self.Status.ACTIVE,
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if already_active:
+                raise ValidationError("Only one quest can be active in a season at a time.")
 
     def allowed_next_statuses(self) -> set[str]:
         transitions = {
