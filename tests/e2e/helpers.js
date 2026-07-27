@@ -27,6 +27,36 @@ except django.db.IntegrityError:
 }
 
 /**
+ * Delete a season by slug via manage.py shell. Safe to call if the season does not exist.
+ */
+function deleteSeasonBySlug(slug) {
+  const script = `
+from apps.seasons.models import Season
+Season.objects.filter(slug='${slug}').delete()
+`.trim();
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  execSync(`${pythonCmd} manage.py shell -c "${script}"`, {
+    cwd: process.cwd(),
+    stdio: 'pipe',
+  });
+}
+
+/**
+ * Delete a quest template by title. Safe to call if it does not exist.
+ */
+function deleteQuestByTitle(title) {
+  const script = `
+from apps.quests.models import Quest
+Quest.objects.filter(title='${title}').delete()
+`.trim();
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  execSync(`${pythonCmd} manage.py shell -c "${script}"`, {
+    cwd: process.cwd(),
+    stdio: 'pipe',
+  });
+}
+
+/**
  * Log in as the staff user via direct POST (faster than UI interaction).
  * Falls back to UI login if the API approach fails.
  */
@@ -166,6 +196,8 @@ module.exports = {
   STAFF_USERNAME,
   STAFF_PASSWORD,
   createStaffUser,
+  deleteSeasonBySlug,
+  deleteQuestByTitle,
   loginAsStaff,
   createSeasonViaAdmin,
   createQuestTemplate,

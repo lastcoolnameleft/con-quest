@@ -5,10 +5,16 @@ from apps.submissions.views import score_submission
 from apps.submissions.views import submit_assignment
 from apps.submissions.views import view_assignment
 from apps.submissions.views import submit_open_quest
+from apps.submissions.views import prepare_assignment_uploads
 
 urlpatterns = [
     path("quests/<int:quest_id>/submit/", submit_open_quest, name="season-quest-submit"),
     path("assignments/<int:assignment_id>/submit/", submit_assignment, name="assignment-submit"),
+    path(
+        "assignments/<int:assignment_id>/upload-targets/",
+        prepare_assignment_uploads,
+        name="assignment-upload-targets",
+    ),
     path("assignments/<int:assignment_id>/view/", view_assignment, name="assignment-view"),
     path("seasons/<slug:slug>/scoring/", scoring_queue, name="season-scoring-queue"),
     path("submissions/<int:submission_id>/score/", score_submission, name="submission-score"),

@@ -43,7 +43,16 @@
         </div>
         {% endif %}
 
-        <form method="post" action="{% url 'assignment-submit' assignment.id %}" enctype="multipart/form-data" class="card shadow-sm border-0 position-relative" id="scheduled-submission-form">
+        <form
+            method="post"
+            action="{% url 'assignment-submit' assignment.id %}"
+            enctype="multipart/form-data"
+            class="card shadow-sm border-0 position-relative"
+            id="scheduled-submission-form"
+            data-upload-target-url="{% url 'assignment-upload-targets' assignment.id %}"
+            data-existing-media-count="{{ existing_media_count }}"
+            data-max-media-files="{{ max_media_files }}"
+        >
             {% csrf_token %}
             <div class="card-body">
                 {% if submission and not can_edit_submission %}
@@ -58,13 +67,15 @@
                 {% endif %}
 
                 {% include "includes/form_fields.html" with form=form %}
-
-                {% if submission and submission.media_items.count %}
+                <input type="hidden" id="uploaded-media-manifest" name="uploaded_media_manifest" value="[]">
+                <div id="upload-status" class="small text-muted mt-2" role="status" aria-live="polite"></div>
                 <div class="mt-3">
-                    <div class="small text-muted mb-2">Existing media</div>
-                    <div class="row g-3">
+                    <div class="small text-muted mb-2">Media</div>
+                    <div id="existing-media-list" class="row g-3">
+                        {% if submission and submission.media_items.count %}
                         {% for media in submission.media_items.all %}
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-6" data-existing-media-id="{{ media.id }}">
+                            <input type="hidden" class="existing-media-order-input" name="media_order_{{ media.id }}" value="{{ forloop.counter }}">
                             {% with media_url=media.signed_url|default:media.blob_path_or_url %}
                             {% if media.media_type == "image" %}
                             <img src="{{ media_url }}" alt="Submission image {{ forloop.counter }}" class="img-fluid rounded border cq-expandable-img" data-full-src="{{ media_url }}">
@@ -76,17 +87,27 @@
                             {% else %}
                             <a href="{{ media_url }}" target="_blank" rel="noopener">Open media {{ forloop.counter }}</a>
                             {% endif %}
+                            {% if can_edit_submission %}
+                            <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+                                <span class="small text-muted existing-media-order-label">#{{ forloop.counter }}</span>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-existing-media-action="up" aria-label="Move up">↑</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-existing-media-action="down" aria-label="Move down">↓</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-existing-media-action="remove" aria-label="Remove">✕</button>
+                                </div>
+                            </div>
+                            {% endif %}
                             {% endwith %}
                         </div>
                         {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
                 <div class="small text-muted mt-2">
                     {% if can_edit_submission %}
                     You can update text and add more media until this submission is scored.
                     {% endif %}
-                    Images: up to 30MB. Videos: up to 100MB and 15 seconds max. Allowed types: jpg, jpeg, png, webp, mp4, mov.
+                    Up to {{ max_media_files }} files per submission. Images: up to 30MB. Videos: up to 100MB and 15 seconds max. Allowed types: jpg, jpeg, png, webp, mp4, mov.
                 </div>
             </div>
             <div class="card-footer d-flex justify-content-end gap-2">
@@ -178,11 +199,363 @@
     if (submitForm) {
         const overlay = document.getElementById("scheduled-submit-overlay");
         const overlayLabel = document.getElementById("scheduled-submit-overlay-label");
+        const fileInput = document.getElementById("id_media_files");
+        const uploadStatus = document.getElementById("upload-status");
+        const existingMediaList = document.getElementById("existing-media-list");
+        const manifestField = document.getElementById("uploaded-media-manifest");
+        const uploadTargetUrl = submitForm.dataset.uploadTargetUrl;
+        const maxMediaFiles = Number.parseInt(submitForm.dataset.maxMediaFiles || "5", 10);
+        const uploadedItems = [];
+        let pendingUploads = 0;
         let submitInFlight = false;
+
+        function csrfToken() {
+            const token = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            return token ? token.value : "";
+        }
+
+        function updateManifest() {
+            if (!existingMediaList) {
+                manifestField.value = JSON.stringify([]);
+                return;
+            }
+            const manifest = [];
+            existingMediaList
+                .querySelectorAll("[data-existing-media-id], [data-uploaded-media-id]")
+                .forEach((item, index) => {
+                    const uploadedMediaId = item.dataset.uploadedMediaId;
+                    if (!uploadedMediaId) return;
+                    const uploadedItem = uploadedItems.find((candidate) => candidate.id === uploadedMediaId);
+                    if (!uploadedItem) return;
+                    manifest.push({ ticket: uploadedItem.ticket, sort_order: index + 1 });
+                });
+            manifestField.value = JSON.stringify(manifest);
+        }
+
+        function setSubmitButtonsDisabled(disabled) {
+            submitForm.querySelectorAll('button[type="submit"]').forEach((btn) => {
+                btn.disabled = disabled;
+            });
+        }
+
+        function syncSubmitState() {
+            if (submitInFlight) {
+                setSubmitButtonsDisabled(true);
+                return;
+            }
+            setSubmitButtonsDisabled(pendingUploads > 0);
+        }
+
+        function setUploadStatus(message, tone = "muted") {
+            if (!uploadStatus) return;
+            uploadStatus.classList.remove("text-muted", "text-info", "text-danger", "text-success");
+            uploadStatus.classList.add(`text-${tone}`);
+            uploadStatus.textContent = message;
+        }
+
+        function currentExistingMediaCount() {
+            if (!existingMediaList) return 0;
+            return existingMediaList.querySelectorAll("[data-existing-media-id]").length;
+        }
+
+        function syncExistingMediaOrder() {
+            if (!existingMediaList) return;
+            const items = Array.from(
+                existingMediaList.querySelectorAll("[data-existing-media-id], [data-uploaded-media-id]")
+            );
+            const total = items.length;
+            items.forEach((item, index) => {
+                const orderInput = item.querySelector(".existing-media-order-input");
+                if (orderInput) orderInput.value = String(index + 1);
+                const orderLabel = item.querySelector(".existing-media-order-label");
+                if (orderLabel) orderLabel.textContent = `#${index + 1}`;
+                const upBtn = item.querySelector('[data-existing-media-action="up"]');
+                const downBtn = item.querySelector('[data-existing-media-action="down"]');
+                if (upBtn) upBtn.hidden = (total <= 1 || index === 0);
+                if (downBtn) downBtn.hidden = (total <= 1 || index === total - 1);
+            });
+            updateManifest();
+        }
+
+        function addDeleteMarker(mediaId) {
+            const marker = document.createElement("input");
+            marker.type = "hidden";
+            marker.name = "delete_media_ids";
+            marker.value = mediaId;
+            marker.className = "existing-media-delete-marker";
+            marker.dataset.mediaId = mediaId;
+            submitForm.appendChild(marker);
+        }
+
+        if (existingMediaList) {
+            existingMediaList.addEventListener("click", (event) => {
+                const button = event.target.closest("button[data-existing-media-action]");
+                if (!button) return;
+                const item = button.closest("[data-existing-media-id], [data-uploaded-media-id]");
+                if (!item) return;
+
+                const action = button.dataset.existingMediaAction;
+                if (action === "up") {
+                    const previous = item.previousElementSibling;
+                    if (previous) {
+                        item.parentElement.insertBefore(item, previous);
+                    }
+                    syncExistingMediaOrder();
+                    return;
+                }
+                if (action === "down") {
+                    const next = item.nextElementSibling;
+                    if (next) {
+                        item.parentElement.insertBefore(next, item);
+                    }
+                    syncExistingMediaOrder();
+                    return;
+                }
+                if (action === "remove") {
+                    const mediaId = item.dataset.existingMediaId;
+                    if (mediaId) {
+                        const existingMarker = submitForm.querySelector(`.existing-media-delete-marker[data-media-id="${mediaId}"]`);
+                        if (!existingMarker) {
+                            addDeleteMarker(mediaId);
+                        }
+                    } else {
+                        const uploadedMediaId = item.dataset.uploadedMediaId;
+                        const uploadedIndex = uploadedItems.findIndex((entry) => entry.id === uploadedMediaId);
+                        if (uploadedIndex >= 0) {
+                            const [removedUploadedItem] = uploadedItems.splice(uploadedIndex, 1);
+                            releasePreviewUrl(removedUploadedItem);
+                        }
+                    }
+                    item.remove();
+                    syncExistingMediaOrder();
+                    const totalSelected = currentExistingMediaCount() + uploadedItems.length;
+                    setUploadStatus(
+                        totalSelected > 0
+                            ? `Selected ${totalSelected} / ${maxMediaFiles} files.`
+                            : "No new files selected.",
+                        "muted",
+                    );
+                }
+            });
+        }
+
+        function releasePreviewUrl(item) {
+            if (item?.previewUrl && item.previewUrl.startsWith("blob:")) {
+                URL.revokeObjectURL(item.previewUrl);
+            }
+        }
+
+        function createUploadedMediaCard(item) {
+            const col = document.createElement("div");
+            col.className = "col-12 col-md-6";
+            col.dataset.uploadedMediaId = item.id;
+
+            const card = document.createElement("div");
+            card.className = "border rounded p-2 h-100";
+
+            if (item.mimeType.startsWith("image/") && item.previewUrl) {
+                const image = document.createElement("img");
+                image.src = item.previewUrl;
+                image.alt = item.name;
+                image.className = "img-fluid rounded border cq-expandable-img";
+                image.dataset.fullSrc = item.previewUrl;
+                card.appendChild(image);
+            } else if (item.mimeType.startsWith("video/") && item.previewUrl) {
+                const video = document.createElement("video");
+                video.controls = true;
+                video.preload = "metadata";
+                video.className = "w-100 rounded border";
+                video.src = item.previewUrl;
+                card.appendChild(video);
+            } else {
+                const fileLabel = document.createElement("div");
+                fileLabel.className = "small";
+                fileLabel.textContent = item.name;
+                card.appendChild(fileLabel);
+            }
+
+            const footer = document.createElement("div");
+            footer.className = "d-flex align-items-center justify-content-between gap-2 mt-2";
+
+            const orderLabel = document.createElement("span");
+            orderLabel.className = "small text-muted existing-media-order-label";
+            orderLabel.textContent = "#";
+            footer.appendChild(orderLabel);
+
+            const buttonGroup = document.createElement("div");
+            buttonGroup.className = "d-flex gap-1";
+            buttonGroup.innerHTML = `
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-existing-media-action="up" aria-label="Move up">↑</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-existing-media-action="down" aria-label="Move down">↓</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-existing-media-action="remove" aria-label="Remove ${item.name}">✕</button>
+            `;
+            footer.appendChild(buttonGroup);
+
+            card.appendChild(footer);
+            col.appendChild(card);
+            return col;
+        }
+
+        async function resolveVideoDurationSeconds(file) {
+            if (!file.type.startsWith("video/")) {
+                return null;
+            }
+
+            return new Promise((resolve) => {
+                const video = document.createElement("video");
+                video.preload = "metadata";
+                video.muted = true;
+                video.src = URL.createObjectURL(file);
+                video.onloadedmetadata = () => {
+                    const duration = Number.isFinite(video.duration) ? Math.ceil(video.duration) : null;
+                    URL.revokeObjectURL(video.src);
+                    resolve(duration);
+                };
+                video.onerror = () => {
+                    URL.revokeObjectURL(video.src);
+                    resolve(null);
+                };
+            });
+        }
+
+        async function buildUploadDescriptors(files) {
+            const descriptors = [];
+            for (const file of files) {
+                descriptors.push({
+                    file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    duration_seconds: await resolveVideoDurationSeconds(file),
+                });
+            }
+            return descriptors;
+        }
+
+        async function uploadSelectedFiles(fileDescriptors) {
+            if (!uploadTargetUrl) return;
+
+            pendingUploads += fileDescriptors.length;
+            syncSubmitState();
+            setUploadStatus(`Uploading ${fileDescriptors.length} file(s)...`, "info");
+
+            const prepareResponse = await fetch(uploadTargetUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken(),
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    files: fileDescriptors.map((descriptor) => ({
+                        name: descriptor.name,
+                        size: descriptor.size,
+                        type: descriptor.type,
+                        duration_seconds: descriptor.duration_seconds,
+                    })),
+                }),
+            });
+            const preparePayload = await prepareResponse.json().catch(() => ({}));
+            if (!prepareResponse.ok) {
+                throw new Error(
+                    preparePayload.error ||
+                        (Array.isArray(preparePayload.errors) ? preparePayload.errors.join(" ") : "Could not start uploads."),
+                );
+            }
+
+            const uploads = preparePayload.uploads || [];
+            if (uploads.length !== fileDescriptors.length) {
+                throw new Error("Upload session did not match selected files.");
+            }
+
+            for (let i = 0; i < fileDescriptors.length; i += 1) {
+                const descriptor = fileDescriptors[i];
+                const file = descriptor.file;
+                const target = uploads[i];
+                const putHeaders = {
+                    ...(target.headers || {}),
+                };
+                if (!putHeaders["Content-Type"] && file.type) {
+                    putHeaders["Content-Type"] = file.type;
+                }
+
+                const uploadResponse = await fetch(target.upload_url, {
+                    method: "PUT",
+                    headers: putHeaders,
+                    body: file,
+                });
+                if (!uploadResponse.ok) {
+                    throw new Error(`Upload failed for ${file.name}.`);
+                }
+
+                const uploadedItemId =
+                    typeof crypto !== "undefined" && crypto.randomUUID
+                        ? crypto.randomUUID()
+                        : `uploaded-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                uploadedItems.push({
+                    id: uploadedItemId,
+                    name: file.name,
+                    ticket: target.ticket,
+                    mimeType: file.type || "application/octet-stream",
+                    previewUrl:
+                        file.type.startsWith("image/") || file.type.startsWith("video/")
+                            ? URL.createObjectURL(file)
+                            : "",
+                });
+                const uploadedCard = createUploadedMediaCard(uploadedItems[uploadedItems.length - 1]);
+                existingMediaList?.appendChild(uploadedCard);
+                syncExistingMediaOrder();
+            }
+        }
+
+        if (fileInput && uploadTargetUrl) {
+            fileInput.addEventListener("change", async () => {
+                const files = Array.from(fileInput.files || []);
+                if (!files.length) return;
+
+                const totalAfterSelection = currentExistingMediaCount() + uploadedItems.length + files.length;
+                if (totalAfterSelection > maxMediaFiles) {
+                    setUploadStatus(
+                        `You can upload up to ${maxMediaFiles} files total for this submission.`,
+                        "danger",
+                    );
+                    fileInput.value = "";
+                    return;
+                }
+
+                try {
+                    const fileDescriptors = await buildUploadDescriptors(files);
+                    await uploadSelectedFiles(fileDescriptors);
+                    const totalSelected = currentExistingMediaCount() + uploadedItems.length;
+                    setUploadStatus(`Selected ${totalSelected} / ${maxMediaFiles} files.`, "success");
+                    fileInput.value = "";
+                } catch (error) {
+                    fileInput.value = "";
+                    setUploadStatus(error.message || "Upload failed. Please try again.", "danger");
+                } finally {
+                    pendingUploads = Math.max(0, pendingUploads - files.length);
+                    syncSubmitState();
+                }
+            });
+        }
+
+        updateManifest();
+        syncExistingMediaOrder();
+        setUploadStatus(
+            currentExistingMediaCount() > 0
+                ? `This submission currently includes ${currentExistingMediaCount()} file(s).`
+                : "No new files selected.",
+            "muted",
+        );
 
         submitForm.addEventListener("submit", (event) => {
             if (submitInFlight) {
                 event.preventDefault();
+                return;
+            }
+            if (pendingUploads > 0) {
+                event.preventDefault();
+                setUploadStatus("Please wait for uploads to finish before submitting.", "danger");
                 return;
             }
             submitInFlight = true;
@@ -196,9 +569,7 @@
                 overlay.classList.remove("d-none");
                 overlay.classList.add("d-flex");
             }
-            submitForm.querySelectorAll('button[type="submit"]').forEach((btn) => {
-                btn.disabled = true;
-            });
+            setSubmitButtonsDisabled(true);
         });
     }
 

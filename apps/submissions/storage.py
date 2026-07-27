@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+from azure.core.exceptions import ResourceNotFoundError
 from django.conf import settings
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
@@ -153,6 +154,64 @@ def signed_read_url(blob_url: str, *, ttl_minutes: int = 10) -> str:
     except Exception:
         logger.warning("Signed URL generation failed; returning raw blob URL.", exc_info=True)
         return blob_url
+
+
+def create_direct_upload_target(
+    *,
+    season_slug: str,
+    assignment_id: int,
+    media_type: str,
+    original_filename: str,
+    content_type: str,
+    ttl_minutes: int = 30,
+) -> dict:
+    extension = Path(original_filename).suffix.lower()
+    blob_name = (
+        f"season/{season_slug}/assignment/{assignment_id}/{media_type}/"
+        f"{uuid.uuid4().hex}{extension}"
+    )
+    blob_client = _blob_client().get_blob_client(
+        container=settings.AZURE_STORAGE_MEDIA_CONTAINER,
+        blob=blob_name,
+    )
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
+    sas_token = generate_blob_sas(
+        account_name=settings.AZURE_STORAGE_ACCOUNT_NAME,
+        container_name=settings.AZURE_STORAGE_MEDIA_CONTAINER,
+        blob_name=blob_name,
+        account_key=settings.AZURE_STORAGE_ACCOUNT_KEY,
+        permission=BlobSasPermissions(create=True, write=True),
+        expiry=expiry,
+        content_type=content_type,
+    )
+    return {
+        "upload_url": f"{blob_client.url}?{sas_token}",
+        "blob_url": blob_client.url,
+        "blob_name": blob_name,
+        "expires_at": expiry.isoformat(),
+    }
+
+
+def fetch_blob_properties(blob_url: str) -> dict | None:
+    parsed = urlparse(blob_url)
+    path_parts = parsed.path.lstrip("/").split("/", 1)
+    if len(path_parts) != 2:
+        return None
+    container_name, blob_name = path_parts
+
+    blob_client = _blob_client().get_blob_client(container=container_name, blob=blob_name)
+    try:
+        properties = blob_client.get_blob_properties()
+    except ResourceNotFoundError:
+        return None
+    except Exception:
+        logger.warning("Blob property lookup failed for %s", blob_url, exc_info=True)
+        return None
+
+    return {
+        "size": int(properties.size),
+        "content_type": properties.content_settings.content_type or "",
+    }
 
 
 def _normalized_media_payload(*, uploaded_file, media_type: str, strip_exif: bool) -> bytes:
