@@ -318,10 +318,10 @@ class FullLifecycleAndScaleTests(TestCase):
 
         # Verify: season detail shows no quests yet for either perspective
         admin_response = self.host_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(admin_response, "No quests have been created yet.")
+        self.assertContains(admin_response, "Quests will appear here once the host adds them.")
 
         player_response = player_client.get(reverse("season-detail", kwargs={"slug": season.slug}))
-        self.assertContains(player_response, "No quests have been created yet.")
+        self.assertContains(player_response, "Quests will appear here once the host adds them.")
 
         # --- Step 2: Add quest to season (starts in DRAFT) ---
         season_quest = self._create_season_quest_via_control(
