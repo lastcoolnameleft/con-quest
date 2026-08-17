@@ -11,4 +11,4 @@ Pillow>=12.2.0,<13
 hachoir>=3.3,<4
 django-allauth[socialaccount]>=64.0
 sentry-sdk>=2.61.0
-whitenoise>=6.7
+whitenoise>=6.12.0
