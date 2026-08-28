@@ -32,12 +32,6 @@
             {% endif %}
             <span class="cq-score-pill">⭐ {{ participant_score }} pts</span>
         </div>
-        {% if user.is_authenticated and participant.is_guest %}
-        <form method="post" action="{% url 'season-claim' season.slug %}">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-outline-primary" type="submit">🔗 Link to account</button>
-        </form>
-        {% endif %}
         {% if debug and user.is_staff %}
         <a class="btn btn-sm btn-outline-warning" href="{% url 'dev-switch-persona' season.slug %}">🛠️ Switch</a>
         {% endif %}
