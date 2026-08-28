@@ -49,6 +49,14 @@ class ControlCenterTests(TestCase):
         self.assertContains(response, "Control Center")
         self.assertContains(response, self.season.title)
 
+    def test_control_dashboard_shows_join_code_and_qr_trigger(self):
+        self._bind_host_session()
+        response = self.client.get(reverse("control-dashboard"))
+        self.assertContains(response, "Join Code")
+        self.assertContains(response, self.season.join_code)
+        self.assertContains(response, "cq-show-qr-btn")
+        self.assertContains(response, f"code={self.season.join_code}")
+
     def test_control_dashboard_shows_pending_score_activity(self):
         self._bind_host_session()
         player = SeasonParticipant.objects.create(

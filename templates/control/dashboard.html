@@ -27,10 +27,28 @@
         <div class="list-group">
             {% for season in seasons %}
             <div class="list-group-item border-top{% if not forloop.last %} mb-3{% endif %}">
-                <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
                         <strong>{{ season.title }}</strong>
                         <div class="small text-muted">{{ season.slug }} | {{ season.get_status_display }}</div>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <span class="small text-uppercase text-muted">Join Code</span>
+                            <code class="cq-join-code fs-6 px-2 py-1 bg-light border rounded">{{ season.join_code }}</code>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary cq-copy-code-btn"
+                                data-code="{{ season.join_code }}"
+                                title="Copy join code"
+                            >📋 Copy</button>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary cq-show-qr-btn"
+                                data-code="{{ season.join_code }}"
+                                data-title="{{ season.title }}"
+                                data-join-url="{{ request.scheme }}://{{ request.get_host }}{% url 'season-index' %}?code={{ season.join_code|urlencode }}"
+                                title="Show QR code to join"
+                            >📱 QR Code</button>
+                        </div>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-sm btn-outline-secondary" href="{% url 'season-detail' season.slug %}">View</a>
@@ -129,4 +147,54 @@
         {% endif %}
     </div>
 </div>
+
+<div class="modal fade" id="cq-qr-modal" tabindex="-1" aria-labelledby="cq-qr-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cq-qr-modal-label">Scan to join</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="cq-qr-code" class="d-flex justify-content-center mb-3"></div>
+                <div class="small text-uppercase text-muted">Join Code</div>
+                <code class="fs-4" id="cq-qr-code-text"></code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/vendor/qrcodejs/qrcode.min.js"></script>
+<script>
+document.querySelectorAll(".cq-copy-code-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+        const code = btn.dataset.code;
+        navigator.clipboard?.writeText(code).then(() => {
+            const original = btn.textContent;
+            btn.textContent = "✅ Copied";
+            setTimeout(() => { btn.textContent = original; }, 1500);
+        });
+    });
+});
+
+const cqQrModalEl = document.getElementById("cq-qr-modal");
+const cqQrContainer = document.getElementById("cq-qr-code");
+const cqQrCodeText = document.getElementById("cq-qr-code-text");
+
+document.querySelectorAll(".cq-show-qr-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+        if (!cqQrContainer) return;
+        cqQrContainer.innerHTML = "";
+        new QRCode(cqQrContainer, {
+            text: btn.dataset.joinUrl,
+            width: 220,
+            height: 220,
+        });
+        cqQrCodeText.textContent = btn.dataset.code;
+        document.getElementById("cq-qr-modal-label").textContent = `Scan to join ${btn.dataset.title}`;
+        const modal = cqQrModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(cqQrModalEl) : null;
+        modal?.show();
+    });
+});
+</script>
 {% endblock %}
