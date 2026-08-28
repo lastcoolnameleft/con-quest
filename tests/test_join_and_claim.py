@@ -274,7 +274,7 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Join from Home")
+        self.assertContains(response, "Join this season")
         self.assertNotContains(response, "action=\"/seasons/dragoncon-2026/join/\"")
 
     def test_season_detail_shows_online_viewer_count_for_quest(self):

@@ -23,7 +23,7 @@ class SeasonJoinForm(BootstrapFormMixin, forms.Form):
             attrs={
                 "class": "form-control form-control-lg text-uppercase",
                 "autocomplete": "one-time-code",
-                "placeholder": "JOIN CODE",
+                "placeholder": "SEASON CODE",
                 "spellcheck": "false",
                 "autocapitalize": "characters",
                 "title": "Required to join this season.",

@@ -57,13 +57,13 @@
 
         <div class="card cq-join-card">
             <div class="card-body p-4 p-md-5">
-                <h2 class="h4 mb-2 d-flex align-items-center gap-2">Join A Quest</h2>
-                <p class="text-muted mb-4">Got a room code? Enter it below with your display name to jump in. No account required!</p>
+                <h2 class="h4 mb-2 d-flex align-items-center gap-2">Join A Season</h2>
+                <p class="text-muted mb-4">Got a season code? Enter it below with your display name to see available quests. No account required!</p>
 
                 <form method="post" action="{% url 'season-join-by-code' %}" class="row g-3 align-items-end">
                     {% csrf_token %}
                     <div class="col-12 col-md-5">
-                        <label class="form-label fw-semibold mb-1" for="id_join_code">Room Code</label>
+                        <label class="form-label fw-semibold mb-1" for="id_join_code">Season Code</label>
                         {{ join_form.join_code }}
                     </div>
                     <div class="col-12 col-md-5">
