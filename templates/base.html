@@ -9,8 +9,8 @@
     <meta name="theme-color" content="#6366f1">
     <link rel="icon" type="image/png" href="/static/images/logo.png">
     <link rel="manifest" href="/static/manifest.json">
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
+    <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link href="/static/css/conquest.css" rel="stylesheet">
     <style>
         html, body { height: 100%; }
@@ -31,8 +31,11 @@
         </button>
         <div class="collapse navbar-collapse" id="cq-nav-collapse">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
-                <li class="nav-item d-flex align-items-center gap-2">
-                    <span id="conn-status-dot" class="cq-conn-dot" title="Connection status" aria-label="Connection status unknown" role="button" tabindex="0"></span>
+                <li class="nav-item">
+                    <button id="conn-status-control" class="cq-conn-status" type="button" title="Check connection">
+                        <span id="conn-status-dot" class="cq-conn-dot" aria-hidden="true"></span>
+                        <span id="conn-status-text">Checking connection</span>
+                    </button>
                 </li>
                 {% if can_access_control %}
                 <li class="nav-item">
@@ -56,7 +59,7 @@
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="btn btn-sm btn-outline-light" href="{% url 'login' %}">Login</a>
+                    <a class="btn btn-sm btn-outline-light" href="{% url 'login' %}">Admin login</a>
                 </li>
                 {% endif %}
             </ul>
@@ -111,16 +114,24 @@
         </div>
     </div>
 </div>
-<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
 <script>
 const _connDot = document.getElementById("conn-status-dot");
+const _connControl = document.getElementById("conn-status-control");
+const _connText = document.getElementById("conn-status-text");
 
 function setNavStatus(level) {
     const colours = { ok: "#22c55e", warn: "#facc15", error: "#ef4444" };
     const labels  = { ok: "Connection good", warn: "Connection degraded", error: "Connection unavailable" };
+    const textLabels = { ok: "Online", warn: "Slow connection", error: "Offline" };
     _connDot.style.background = colours[level] || "#9ca3af";
-    _connDot.setAttribute("title", labels[level] || "Connection status unknown");
-    _connDot.setAttribute("aria-label", labels[level] || "Connection status unknown");
+    if (_connText) {
+        _connText.textContent = textLabels[level] || "Checking connection";
+    }
+    if (_connControl) {
+        _connControl.setAttribute("title", labels[level] || "Connection status unknown");
+        _connControl.setAttribute("aria-label", labels[level] || "Connection status unknown");
+    }
 }
 
 function showConnectionToast(message) {
@@ -160,7 +171,7 @@ async function checkConnection(showToast = false) {
     }
 }
 
-_connDot.addEventListener("click", () => checkConnection(true));
+_connControl?.addEventListener("click", () => checkConnection(true));
 
 function initializeTooltips(root = document) {
     if (!window.bootstrap || !window.bootstrap.Tooltip) {
@@ -259,8 +270,18 @@ window.addEventListener("DOMContentLoaded", () => {
     initializeImageLightboxes();
     connectHealthSocket();
 });
-window.addEventListener("offline", () => setNavStatus("error"));
+window.addEventListener("offline", () => {
+    setNavStatus("error");
+    showConnectionToast("You appear to be offline. Reconnect before submitting forms.");
+});
 window.addEventListener("online", () => connectHealthSocket());
+document.addEventListener("submit", (event) => {
+    if (!navigator.onLine) {
+        event.preventDefault();
+        setNavStatus("error");
+        showConnectionToast("You're offline. Your page is still open; reconnect and try again.");
+    }
+}, true);
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
         disconnectHealthSocket();

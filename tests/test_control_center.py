@@ -49,6 +49,14 @@ class ControlCenterTests(TestCase):
         self.assertContains(response, "Control Center")
         self.assertContains(response, self.season.title)
 
+    def test_control_dashboard_shows_join_code_and_qr_trigger(self):
+        self._bind_host_session()
+        response = self.client.get(reverse("control-dashboard"))
+        self.assertContains(response, "Join Code")
+        self.assertContains(response, self.season.join_code)
+        self.assertContains(response, "cq-show-qr-btn")
+        self.assertContains(response, f"code={self.season.join_code}")
+
     def test_control_dashboard_shows_pending_score_activity(self):
         self._bind_host_session()
         player = SeasonParticipant.objects.create(
@@ -214,7 +222,7 @@ class ControlCenterTests(TestCase):
         self.assertIsNotNone(created)
         self.assertEqual(created.late_grace_seconds, 0)
 
-    def test_host_cannot_create_second_non_archived_scheduled_quest(self):
+    def test_host_can_create_second_pending_scheduled_quest(self):
         self._bind_host_session()
         self.season_quest.quest_mode = SeasonQuest.QuestMode.SCHEDULED
         self.season_quest.status = SeasonQuest.Status.PENDING
@@ -238,11 +246,42 @@ class ControlCenterTests(TestCase):
             },
         )
 
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            SeasonQuest.objects.filter(season=self.season, title_override="Second scheduled quest").exists()
+        )
+
+    def test_host_cannot_create_second_active_scheduled_quest(self):
+        self._bind_host_session()
+        self.season_quest.quest_mode = SeasonQuest.QuestMode.SCHEDULED
+        self.season_quest.status = SeasonQuest.Status.ACTIVE
+        self.season_quest.save(update_fields=["quest_mode", "status", "updated_at"])
+
+        second_template = Quest.objects.create(title="Template Scheduled B", description="Desc")
+        response = self.client.post(
+            reverse("season-quest-create", kwargs={"slug": self.season.slug}),
+            {
+                "quest": second_template.id,
+                "title_override": "Second scheduled quest",
+                "description_override": "Another schedule",
+                "quest_mode": SeasonQuest.QuestMode.SCHEDULED,
+                "rsvp_code": "",
+                "duration_seconds": 120,
+                "opens_at": "",
+                "closes_at": "",
+                "reveal_policy": SeasonQuest.RevealPolicy.INSTANT,
+                "points_max": 5,
+                "allow_late_submissions": "",
+            },
+        )
+
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Only one scheduled quest is allowed per season. Archive the existing scheduled quest first.",
+            "Only one scheduled quest can be active per season. "
+            "Complete or archive the active scheduled quest first.",
         )
+
 
     def test_host_cannot_create_duplicate_season_quest_title(self):
         self._bind_host_session()

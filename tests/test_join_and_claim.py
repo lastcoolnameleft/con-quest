@@ -20,12 +20,33 @@ class JoinAndClaimTests(TestCase):
             title="DragonCon 2026",
             slug="dragoncon-2026",
             join_code="ABC123",
+            status=Season.Status.ACTIVE,
         )
 
     def test_join_requires_matching_code(self):
         response = self.client.post(
             reverse("season-join", kwargs={"slug": self.season.slug}),
             {"handle": "player1", "join_code": "WRONG"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())
+
+    def test_join_rejected_when_season_is_draft(self):
+        self.season.status = Season.Status.DRAFT
+        self.season.save(update_fields=["status", "updated_at"])
+        response = self.client.post(
+            reverse("season-join", kwargs={"slug": self.season.slug}),
+            {"handle": "player1", "join_code": self.season.join_code},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())
+
+    def test_join_by_code_rejected_when_season_is_draft(self):
+        self.season.status = Season.Status.DRAFT
+        self.season.save(update_fields=["status", "updated_at"])
+        response = self.client.post(
+            reverse("season-join-by-code"),
+            {"handle": "player1", "join_code": self.season.join_code},
         )
         self.assertEqual(response.status_code, 302)
         self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())
@@ -38,6 +59,23 @@ class JoinAndClaimTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("season-detail", kwargs={"slug": self.season.slug}))
         self.assertTrue(SeasonParticipant.objects.filter(season=self.season, handle="player-index").exists())
+
+    def test_valid_room_code_allows_many_players_from_same_network(self):
+        for i in range(8):
+            response = self.client.post(
+                reverse("season-join-by-code"),
+                {"handle": f"shared-wifi-{i}", "join_code": self.season.join_code},
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.url, reverse("season-detail", kwargs={"slug": self.season.slug}))
+
+        self.assertEqual(
+            SeasonParticipant.objects.filter(
+                season=self.season,
+                handle__startswith="shared-wifi-",
+            ).count(),
+            8,
+        )
 
     def test_index_prefills_room_code_from_query_string(self):
         response = self.client.get(reverse("season-index"), {"code": "abc123"})
@@ -257,7 +295,7 @@ class JoinAndClaimTests(TestCase):
         response = self.client.get(reverse("season-detail", kwargs={"slug": self.season.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Join from Home")
+        self.assertContains(response, "Join this game")
         self.assertNotContains(response, "action=\"/seasons/dragoncon-2026/join/\"")
 
     def test_season_detail_shows_online_viewer_count_for_quest(self):

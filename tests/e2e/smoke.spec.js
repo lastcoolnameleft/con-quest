@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test('join page loads and legal links are reachable', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Join A Quest' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join A Game' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Terms of Service' }).first().click();

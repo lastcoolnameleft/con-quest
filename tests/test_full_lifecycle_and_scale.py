@@ -35,7 +35,7 @@ class FullLifecycleAndScaleTests(TestCase):
             {
                 "title": title,
                 "slug": slug,
-                "status": Season.Status.DRAFT,
+                "status": Season.Status.ACTIVE,
                 "join_code": join_code,
             },
         )
@@ -218,7 +218,12 @@ class FullLifecycleAndScaleTests(TestCase):
         self.assertContains(response, "Invalid status transition")
 
     def test_pending_open_quest_rejects_direct_submit(self):
-        season = Season.objects.create(title="Pending Submit Season", slug="pending-submit-season", join_code="PEND26")
+        season = Season.objects.create(
+            title="Pending Submit Season",
+            slug="pending-submit-season",
+            join_code="PEND26",
+            status=Season.Status.ACTIVE,
+        )
         template = Quest.objects.create(title="Pending Quest", description="Desc")
         season_quest = SeasonQuest.objects.create(
             season=season,

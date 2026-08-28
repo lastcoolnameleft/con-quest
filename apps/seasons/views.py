@@ -313,6 +313,10 @@ def season_archive(request: HttpRequest, slug: str) -> HttpResponse:
 @require_POST
 def join_season(request: HttpRequest, slug: str) -> HttpResponse:
     season = get_object_or_404(Season, slug=slug)
+    if season.status != Season.Status.ACTIVE:
+        messages.error(request, "This season is not currently open for joining.")
+        return redirect("season-detail", slug=slug)
+
     limit = 5
     window_seconds = 60
     allowed, retry_after, current_count = check_rate_limit(
@@ -359,10 +363,48 @@ def join_season(request: HttpRequest, slug: str) -> HttpResponse:
 
 @require_POST
 def join_season_by_code(request: HttpRequest) -> HttpResponse:
-    limit = 5
+    form = SeasonJoinForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Please provide a valid join code and display name.")
+        return redirect("season-index")
+
+    join_code = (form.cleaned_data.get("join_code") or "").strip().upper()
+    season = (
+        Season.objects.filter(join_code__iexact=join_code, status=Season.Status.ACTIVE)
+        .order_by("-created_at")
+        .first()
+    )
+    if not season:
+        limit = 10
+        window_seconds = 60
+        allowed, retry_after, current_count = check_rate_limit(
+            key=f"join-invalid:{client_identifier(request)}",
+            limit=limit,
+            window_seconds=window_seconds,
+        )
+        if not allowed:
+            messages.error(request, f"Too many join attempts. Try again in about {retry_after} seconds.")
+            response = redirect("season-index")
+            return add_rate_limit_headers(
+                response,
+                limit=limit,
+                window_seconds=window_seconds,
+                remaining=0,
+                retry_after=retry_after,
+            )
+        messages.error(request, "Invalid season join code.")
+        response = redirect("season-index")
+        return add_rate_limit_headers(
+            response,
+            limit=limit,
+            window_seconds=window_seconds,
+            remaining=limit - current_count,
+        )
+
+    limit = 30
     window_seconds = 60
     allowed, retry_after, current_count = check_rate_limit(
-        key=f"join-by-code:{client_identifier(request)}",
+        key=f"join-season:{season.id}:{client_identifier(request)}",
         limit=limit,
         window_seconds=window_seconds,
     )
@@ -377,17 +419,6 @@ def join_season_by_code(request: HttpRequest) -> HttpResponse:
             retry_after=retry_after,
         )
 
-    form = SeasonJoinForm(request.POST)
-    if not form.is_valid():
-        messages.error(request, "Please provide a valid join code and display name.")
-        return redirect("season-index")
-
-    join_code = (form.cleaned_data.get("join_code") or "").strip().upper()
-    season = Season.objects.filter(join_code__iexact=join_code).order_by("-created_at").first()
-    if not season:
-        messages.error(request, "Invalid season join code.")
-        return redirect("season-index")
-
     handle = form.cleaned_data["handle"].strip()
     try:
         participant, _ = SeasonParticipant.objects.get_or_create(
@@ -401,7 +432,13 @@ def join_season_by_code(request: HttpRequest) -> HttpResponse:
 
     bind_session_participant(request, season, participant)
     messages.success(request, f"Joined {season.title} as {participant.handle}.")
-    return redirect("season-detail", slug=season.slug)
+    response = redirect("season-detail", slug=season.slug)
+    return add_rate_limit_headers(
+        response,
+        limit=limit,
+        window_seconds=window_seconds,
+        remaining=limit - current_count,
+    )
 
 
 @login_required

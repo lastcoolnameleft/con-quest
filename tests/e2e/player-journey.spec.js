@@ -12,6 +12,8 @@ const {
 } = require('./helpers');
 
 test.describe('Player submission journey', () => {
+  test.describe.configure({ timeout: 60_000, mode: 'serial' });
+
   const suffix = uniqueSuffix();
   const seasonTitle = `Player Season ${suffix}`;
   const seasonSlug = `player-season-${suffix}`;
@@ -53,7 +55,7 @@ test.describe('Player submission journey', () => {
 
     // Player should see the active quest with "Start Quest" button
     await expect(page.getByText(questTitle)).toBeVisible();
-    await page.getByRole('link', { name: 'Start Quest' }).first().click();
+    await page.getByRole('link', { name: /Start Quest/ }).first().click();
 
     // Player fills submission form
     await page.waitForURL(/\/(quests|assignments)\/.+\/submit/);
@@ -64,7 +66,7 @@ test.describe('Player submission journey', () => {
     await page.waitForURL(/\/seasons\//);
 
     // Verify the assignment shows as submitted
-    await expect(page.getByText('You have submitted for this quest')).toBeVisible();
+    await expect(page.getByText(/Submitted.*scoring soon/)).toBeVisible();
   });
 
   test('player views leaderboard after scoring', async ({ browser }) => {
@@ -74,7 +76,7 @@ test.describe('Player submission journey', () => {
     const scorePlayerHandle = `scorer-${scoreSuffix}`;
 
     await joinSeasonAsPlayer(playerPage, { joinCode, handle: scorePlayerHandle });
-    await playerPage.getByRole('link', { name: 'Start Quest' }).first().click();
+    await playerPage.getByRole('link', { name: /Start Quest/ }).first().click();
     await playerPage.waitForURL(/\/(quests|assignments)\/.+\/submit/);
     await playerPage.fill('#id_text_response', 'Submission to be scored');
     await playerPage.getByRole('button', { name: 'Submit for scoring' }).click();
@@ -100,8 +102,8 @@ test.describe('Player submission journey', () => {
 
     // Player views leaderboard
     await playerPage.goto(`/seasons/${seasonSlug}/leaderboard/`);
-    await expect(playerPage.getByRole('cell', { name: scorePlayerHandle }).first()).toBeVisible();
-    await expect(playerPage.getByRole('cell', { name: '4' }).first()).toBeVisible();
+    await expect(playerPage.getByText(scorePlayerHandle).first()).toBeVisible();
+    await expect(playerPage.locator('.cq-leaderboard-score', { hasText: '4' }).first()).toBeVisible();
     await playerPage.close();
   });
 

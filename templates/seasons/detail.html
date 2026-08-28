@@ -15,9 +15,9 @@
 {% if not participant %}
 <div class="card cq-join-card mb-4">
     <div class="card-body p-4">
-        <h2 class="h5 mb-1 d-flex align-items-center gap-2">🎟️ Join from Home</h2>
-        <p class="text-muted mb-3">Use the Join A Quest form on the home page to enter your room code and display name.</p>
-        <a class="btn btn-cq-success" href="{% url 'season-index' %}">Go to Join A Quest</a>
+        <h2 class="h5 mb-1 d-flex align-items-center gap-2">🎟️ Join this game</h2>
+        <p class="text-muted mb-3">Use the Join A Game form on the home page to enter your game code and display name.</p>
+        <a class="btn btn-cq-success" href="{% url 'season-index' %}">Go to Join A Game</a>
     </div>
 </div>
 {% else %}
@@ -32,12 +32,6 @@
             {% endif %}
             <span class="cq-score-pill">⭐ {{ participant_score }} pts</span>
         </div>
-        {% if user.is_authenticated and participant.is_guest %}
-        <form method="post" action="{% url 'season-claim' season.slug %}">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-outline-primary" type="submit">🔗 Link to account</button>
-        </form>
-        {% endif %}
         {% if debug and user.is_staff %}
         <a class="btn btn-sm btn-outline-warning" href="{% url 'dev-switch-persona' season.slug %}">🛠️ Switch</a>
         {% endif %}
