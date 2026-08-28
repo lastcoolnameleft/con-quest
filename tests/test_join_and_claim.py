@@ -20,12 +20,33 @@ class JoinAndClaimTests(TestCase):
             title="DragonCon 2026",
             slug="dragoncon-2026",
             join_code="ABC123",
+            status=Season.Status.ACTIVE,
         )
 
     def test_join_requires_matching_code(self):
         response = self.client.post(
             reverse("season-join", kwargs={"slug": self.season.slug}),
             {"handle": "player1", "join_code": "WRONG"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())
+
+    def test_join_rejected_when_season_is_draft(self):
+        self.season.status = Season.Status.DRAFT
+        self.season.save(update_fields=["status", "updated_at"])
+        response = self.client.post(
+            reverse("season-join", kwargs={"slug": self.season.slug}),
+            {"handle": "player1", "join_code": self.season.join_code},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())
+
+    def test_join_by_code_rejected_when_season_is_draft(self):
+        self.season.status = Season.Status.DRAFT
+        self.season.save(update_fields=["status", "updated_at"])
+        response = self.client.post(
+            reverse("season-join-by-code"),
+            {"handle": "player1", "join_code": self.season.join_code},
         )
         self.assertEqual(response.status_code, 302)
         self.assertFalse(SeasonParticipant.objects.filter(season=self.season, handle="player1").exists())

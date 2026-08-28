@@ -313,6 +313,10 @@ def season_archive(request: HttpRequest, slug: str) -> HttpResponse:
 @require_POST
 def join_season(request: HttpRequest, slug: str) -> HttpResponse:
     season = get_object_or_404(Season, slug=slug)
+    if season.status != Season.Status.ACTIVE:
+        messages.error(request, "This season is not currently open for joining.")
+        return redirect("season-detail", slug=slug)
+
     limit = 5
     window_seconds = 60
     allowed, retry_after, current_count = check_rate_limit(
@@ -365,7 +369,11 @@ def join_season_by_code(request: HttpRequest) -> HttpResponse:
         return redirect("season-index")
 
     join_code = (form.cleaned_data.get("join_code") or "").strip().upper()
-    season = Season.objects.filter(join_code__iexact=join_code).order_by("-created_at").first()
+    season = (
+        Season.objects.filter(join_code__iexact=join_code, status=Season.Status.ACTIVE)
+        .order_by("-created_at")
+        .first()
+    )
     if not season:
         limit = 10
         window_seconds = 60
