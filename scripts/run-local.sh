@@ -4,12 +4,17 @@ set -e
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8042}"
 USE_DAPHNE="${USE_DAPHNE:-0}"
+PYTHON="${PYTHON:-python}"
+DJANGO_DB_PATH="${DJANGO_DB_PATH:-db/db.sqlite3}"
+
+mkdir -p "$(dirname "$DJANGO_DB_PATH")"
+export DJANGO_DB_PATH
 
 echo "Running migrations..."
-python manage.py migrate --noinput
+"$PYTHON" manage.py migrate --noinput
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput
+"$PYTHON" manage.py collectstatic --noinput
 
 if [ "$USE_DAPHNE" = "1" ]; then
   echo "Starting Daphne ASGI server on ${HOST}:${PORT} (no live reload)..."
@@ -17,4 +22,4 @@ if [ "$USE_DAPHNE" = "1" ]; then
 fi
 
 echo "Starting Django dev server with live reload on ${HOST}:${PORT}..."
-exec python manage.py runserver "${HOST}:${PORT}"
+exec "$PYTHON" manage.py runserver "${HOST}:${PORT}"

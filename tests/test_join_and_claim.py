@@ -39,6 +39,23 @@ class JoinAndClaimTests(TestCase):
         self.assertEqual(response.url, reverse("season-detail", kwargs={"slug": self.season.slug}))
         self.assertTrue(SeasonParticipant.objects.filter(season=self.season, handle="player-index").exists())
 
+    def test_valid_room_code_allows_many_players_from_same_network(self):
+        for i in range(8):
+            response = self.client.post(
+                reverse("season-join-by-code"),
+                {"handle": f"shared-wifi-{i}", "join_code": self.season.join_code},
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.url, reverse("season-detail", kwargs={"slug": self.season.slug}))
+
+        self.assertEqual(
+            SeasonParticipant.objects.filter(
+                season=self.season,
+                handle__startswith="shared-wifi-",
+            ).count(),
+            8,
+        )
+
     def test_index_prefills_room_code_from_query_string(self):
         response = self.client.get(reverse("season-index"), {"code": "abc123"})
         self.assertEqual(response.status_code, 200)

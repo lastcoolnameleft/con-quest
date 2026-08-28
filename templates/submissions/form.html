@@ -104,7 +104,7 @@
         <button class="btn btn-primary" type="submit" name="submit_action" value="submit" data-loading-label="Submitting for scoring...">Submit for scoring</button>
         {% endif %}
     </div>
-    <div id="submit-overlay" class="d-none position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(255,255,255,0.85); z-index: 10; border-radius: inherit;">
+    <div id="submit-overlay" class="d-none position-absolute top-0 start-0 w-100 h-100 align-items-center justify-content-center" style="background: rgba(255,255,255,0.85); z-index: 10; border-radius: inherit;">
         <div class="text-center">
             <div class="spinner-border text-primary mb-2" role="status"><span class="visually-hidden">Submitting...</span></div>
             <div class="fw-semibold" id="submit-overlay-label">Submitting&hellip;</div>
@@ -356,7 +356,7 @@
 
         pendingUploads += fileDescriptors.length;
         syncSubmitState();
-        setUploadStatus(`Uploading ${fileDescriptors.length} file(s)...`, "info");
+        setUploadStatus(`Uploading ${fileDescriptors.length} file(s). Keep this page open.`, "info");
 
         const prepareResponse = await fetch(uploadTargetUrl, {
             method: "POST",
@@ -404,7 +404,7 @@
                 body: file,
             });
             if (!uploadResponse.ok) {
-                throw new Error(`Upload failed for ${file.name}.`);
+                throw new Error(`Upload failed for ${file.name}. Reconnect and try again.`);
             }
 
             const uploadedItemId =
@@ -450,7 +450,8 @@
                 fileInput.value = "";
             } catch (error) {
                 fileInput.value = "";
-                setUploadStatus(error.message || "Upload failed. Please try again.", "danger");
+                const offlineMessage = "You're offline. Reconnect and choose the file again; your typed text is still here.";
+                setUploadStatus(navigator.onLine ? (error.message || "Upload failed. Please try again.") : offlineMessage, "danger");
             } finally {
                 pendingUploads = Math.max(0, pendingUploads - files.length);
                 syncSubmitState();
@@ -468,6 +469,12 @@
     );
 
     form.addEventListener("submit", (event) => {
+        if (event.defaultPrevented) {
+            if (!navigator.onLine) {
+                setUploadStatus("You're offline. Reconnect and try again; your typed text is still here.", "danger");
+            }
+            return;
+        }
         if (submitInFlight) {
             event.preventDefault();
             return;
@@ -477,12 +484,18 @@
             setUploadStatus("Please wait for uploads to finish before submitting.", "danger");
             return;
         }
+        if (!navigator.onLine) {
+            event.preventDefault();
+            setUploadStatus("You're offline. Reconnect and try again; your typed text is still here.", "danger");
+            return;
+        }
         submitInFlight = true;
         const submitter = event.submitter;
         const loadingLabel = submitter?.dataset?.loadingLabel || "Submitting...";
         if (overlayLabel) {
             overlayLabel.textContent = loadingLabel;
         }
+        setUploadStatus(`${loadingLabel} Keep this page open on slow connections.`, "info");
         overlay.classList.remove("d-none");
         overlay.classList.add("d-flex");
         setSubmitButtonsDisabled(true);

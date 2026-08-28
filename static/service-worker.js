@@ -1,5 +1,13 @@
-const CACHE_NAME = "con-quest-v2";
-const CORE_ASSETS = ["/", "/static/manifest.json"];
+const CACHE_NAME = "con-quest-v3";
+const CORE_ASSETS = [
+  "/",
+  "/static/manifest.json",
+  "/static/css/conquest.css",
+  "/static/images/logo.png",
+  "/static/vendor/bootstrap/bootstrap.min.css",
+  "/static/vendor/bootstrap/bootstrap.bundle.min.js",
+  "/static/vendor/htmx/htmx.min.js",
+];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS)));

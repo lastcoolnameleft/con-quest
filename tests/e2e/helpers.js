@@ -69,10 +69,11 @@ async function loginAsStaff(page) {
   const response = await page.request.post('/auth/login/', {
     form: {
       csrfmiddlewaretoken: csrfToken,
-      login: STAFF_USERNAME,
+      username: STAFF_USERNAME,
       password: STAFF_PASSWORD,
     },
   });
+  expect(response.ok()).toBeTruthy();
 
   // Navigate to home to confirm login and set page context
   await page.goto('/');

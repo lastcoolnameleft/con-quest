@@ -55,9 +55,9 @@
                     {% elif quest.participant_assignment and quest.participant_assignment.status == "pending" and quest.participant_assignment.submission %}
                     <a class="cq-quest-action cq-quest-action-edit" href="{% url 'assignment-submit' quest.participant_assignment.id %}">Continue</a>
                     {% elif quest.participant_assignment and quest.participant_assignment.status == "pending" %}
-                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'assignment-submit' quest.participant_assignment.id %}">▶ Start</a>
+                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'assignment-submit' quest.participant_assignment.id %}">▶ Start Quest</a>
                     {% elif quest.quest_mode == "open" and not quest.participant_assignment %}
-                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'season-quest-submit' quest.id %}">▶ Start</a>
+                    <a class="cq-quest-action cq-quest-action-start" href="{% url 'season-quest-submit' quest.id %}">▶ Start Quest</a>
                     {% endif %}
                 {% elif participant and quest.status == "pending" and quest.quest_mode == "scheduled" and quest.participant_assignment %}
                     <a class="cq-quest-action cq-quest-action-view" href="{% url 'assignment-view' quest.participant_assignment.id %}">🎯 Lobby</a>

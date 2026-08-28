@@ -148,4 +148,20 @@ test.describe('Submission UX under slow networks', () => {
     await expect(page.getByText(/Submission received\.|Submitted/).first()).toBeVisible();
     await cdp.detach().catch(() => {});
   });
+
+  test('offline submit keeps form data and explains recovery', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Offline emulation uses Chromium context support');
+
+    await openSubmissionPage(page, `latency-offline-${uniqueSuffix()}`);
+    await page.fill('#id_text_response', 'Offline recovery text should remain');
+
+    await page.context().setOffline(true);
+    await page.getByRole('button', { name: 'Submit for scoring' }).click();
+
+    await expect(page.locator('#upload-status')).toContainText(/offline/i);
+    await expect(page.locator('#id_text_response')).toHaveValue('Offline recovery text should remain');
+    await expect(page).toHaveURL(/\/assignments\/\d+\/submit\//);
+
+    await page.context().setOffline(false);
+  });
 });
